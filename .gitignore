@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+ops/skill-crm/node_modules/
+ops/skill-content-gen/node_modules/
+
+# Next.js
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Supabase temp
+supabase/.temp/
+
+# Debug output files
+*.txt
+!docs/**/*.txt
+
+# Local scripts output
+poll_page_debug.txt
+scripts/check_tiers_debug.txt
+scripts/check_tiers_output.txt
+scripts/check_tiers_output_2.txt
+scripts/check_tiers_visualized.txt
