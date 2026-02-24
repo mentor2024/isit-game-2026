@@ -1,8 +1,9 @@
 
 import Link from "next/link";
-import { ArrowLeft, Edit } from "lucide-react";
+import { ArrowLeft, ArrowRight, Edit } from "lucide-react";
 import { formatStage, formatLevel } from "@/lib/formatters";
 import { getServiceRoleClient } from "@/lib/supabaseServer";
+import BackToPollsLink from "@/components/BackToPollsLink";
 
 async function getPoll(id: string) {
     const adminClient = getServiceRoleClient();
@@ -13,10 +14,27 @@ async function getPoll(id: string) {
         .eq('id', id)
         .single();
 
-    // Get exact vote counts if needed, but the simple count is just total rows
-    // For breakdown we might need more aggregated query or just client side if small
-
     return poll;
+}
+
+async function getAdjacentPolls(stage: number, level: number, currentOrder: number) {
+    const adminClient = getServiceRoleClient();
+
+    // Get all polls in the same stage+level, ordered by poll_order
+    const { data: polls } = await adminClient
+        .from('polls')
+        .select('id, poll_order, title')
+        .eq('stage', stage)
+        .eq('level', level)
+        .order('poll_order', { ascending: true });
+
+    if (!polls || polls.length === 0) return { prev: null, next: null };
+
+    const currentIndex = polls.findIndex((p: any) => p.poll_order === currentOrder);
+    const prev = currentIndex > 0 ? polls[currentIndex - 1] : null;
+    const next = currentIndex < polls.length - 1 ? polls[currentIndex + 1] : null;
+
+    return { prev, next };
 }
 
 export default async function PollDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,29 +43,63 @@ export default async function PollDetailsPage({ params }: { params: Promise<{ id
 
     if (!poll) return <div className="p-8">Poll not found</div>;
 
-    const totalVotes = poll.poll_votes ? poll.poll_votes[0]?.count : 0; // Fix if count logic differs
-
-    // Actual vote count query since we can't trust the simple singular view for aggregation
     const adminClient = getServiceRoleClient();
     const { count } = await adminClient.from('poll_votes').select('*', { count: 'exact', head: true }).eq('poll_id', id);
 
+    const { prev, next } = await getAdjacentPolls(poll.stage, poll.level, poll.poll_order);
 
     // Sort objects by ID (which contains index) to ensure Object 1 comes before Object 2
     const objects = poll.poll_objects?.sort((a: any, b: any) => a.id.localeCompare(b.id)) || [];
 
     return (
         <div className="max-w-4xl mx-auto p-8">
-            <Link href="/admin/polls" className="flex items-center gap-2 text-gray-500 hover:text-black mb-6 font-bold">
-                <ArrowLeft size={20} />
-                Back to Polls
-            </Link>
+            <BackToPollsLink />
 
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-4xl font-black">Poll Details</h1>
-                <Link href={`/admin/polls/${id}/edit`} className="bg-black text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform">
-                    <Edit size={20} />
-                    Edit
-                </Link>
+
+                {/* Prev / Next + Edit */}
+                <div className="flex items-center gap-3">
+                    {prev ? (
+                        <Link
+                            href={`/admin/polls/${prev.id}/edit`}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-sm hover:border-black hover:text-black transition-colors"
+                            title={prev.title}
+                        >
+                            <ArrowLeft size={15} />
+                            Prev
+                        </Link>
+                    ) : (
+                        <span className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-gray-100 text-gray-300 font-bold text-sm cursor-not-allowed">
+                            <ArrowLeft size={15} />
+                            Prev
+                        </span>
+                    )}
+
+                    {next ? (
+                        <Link
+                            href={`/admin/polls/${next.id}/edit`}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-sm hover:border-black hover:text-black transition-colors"
+                            title={next.title}
+                        >
+                            Next
+                            <ArrowRight size={15} />
+                        </Link>
+                    ) : (
+                        <span className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-gray-100 text-gray-300 font-bold text-sm cursor-not-allowed">
+                            Next
+                            <ArrowRight size={15} />
+                        </span>
+                    )}
+
+                    <Link
+                        href={`/admin/polls/${id}/edit`}
+                        className="bg-black text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform"
+                    >
+                        <Edit size={20} />
+                        Edit
+                    </Link>
+                </div>
             </div>
 
             <div className="grid gap-6">

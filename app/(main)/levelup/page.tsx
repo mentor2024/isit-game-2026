@@ -1,5 +1,3 @@
-import 'react-quill-new/dist/quill.snow.css';
-import 'quill-table-ui/dist/index.css';
 import Link from "next/link";
 import { STAGE_NAMES, LEVEL_LETTERS, formatHtmlForDisplay } from "@/lib/formatters";
 import { Coins } from "lucide-react";

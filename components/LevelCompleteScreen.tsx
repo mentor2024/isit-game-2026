@@ -1,5 +1,7 @@
 "use client";
 
+import { createClient } from "@/lib/supabaseClient";
+import { submitLead } from "@/app/(main)/poll/actions";
 import 'react-quill-new/dist/quill.snow.css';
 import 'quill-table-ui/dist/index.css';
 import { useState, useTransition } from "react";
@@ -67,11 +69,10 @@ export default function LevelCompleteScreen({
             }
 
             if (stage === 0 && isStageComplete) {
-                // Only exit to Welcome/Thank You if the STAGE is truly complete
-                if (tier === 'B' || tier === 'C') {
-                    router.push('/thank-you');
-                } else {
+                if (tier === 'A') {
                     router.push('/welcome');
+                } else {
+                    router.push('/thank-you');
                 }
             } else {
                 // Otherwise, refresh to load the next level (or same level if something weird happened)
@@ -87,10 +88,9 @@ export default function LevelCompleteScreen({
     // We removed '&& isStageComplete' to allow this screen for intermediate Stage 0 levels (e.g. Level 1).
     if (stage === 0) {
         // Group Logic for Stage 0: Top = A (90+), Middle = B (70-89), Bottom = C (<70)
-        const isTopGroup = tier === 'A' || tier === 'S'; // Keeping 'S' fallback just in case
+        const isTopGroup = tier === 'S' || tier === 'A';
         const isMiddleGroup = tier === 'B';
-        const isBottomGroup = !isTopGroup && !isMiddleGroup;
-
+        const isBottomGroup = tier === 'C';
         // Logic for showing the right-side form
         // - Top Group: Registration Form (Show only if NOT logged in, and ONLY at end of stage?) 
         //   Actually, if we have multiple levels, maybe we only show form at the END?
@@ -98,12 +98,12 @@ export default function LevelCompleteScreen({
         //   For now, preserving existing logic but wary of showing form too early.
         //   Update: User wants "Assessment Report".
 
-        const showForm = (isTopGroup || isMiddleGroup) && !isLoggedIn;
+        const showForm = (isTopGroup || (isMiddleGroup && level >= 2)) && !isLoggedIn;
         const isSingleColumn = !showForm;
 
         // Button Logic
+        const showContinueButton = !(isBottomGroup && isStageComplete);
         const buttonText = isStageComplete ? "Finish" : "Next Level";
-
         // Fallback Defaults
         const defaultTitle = isTopGroup ? "You Are Aware." :
             isMiddleGroup ? "Potential Detected." :
@@ -170,7 +170,7 @@ export default function LevelCompleteScreen({
                             )}
 
                             {/* If Form is HIDDEN, show continue button here */}
-                            {!showForm && (
+                            {!showForm && showContinueButton && (
                                 <button
                                     onClick={handleContinue}
                                     disabled={loading}
@@ -185,7 +185,7 @@ export default function LevelCompleteScreen({
                         {showForm && (
                             <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 flex flex-col justify-center md:col-span-1">
                                 {isTopGroup ? (
-                                    <RegistrationForm onComplete={() => router.push('/thank-you')} loading={loading} />
+                                    <RegistrationForm onComplete={() => router.push('/welcome')} loading={loading} />
                                 ) : (
                                     <LeadForm onComplete={() => router.push('/thank-you')} />
                                 )}
@@ -277,27 +277,27 @@ export default function LevelCompleteScreen({
 
 // --- SUB-COMPONENTS ---
 
-import { createClient } from "@/lib/supabaseClient";
-import { submitLead } from "@/app/(main)/poll/actions";
-
 function RegistrationForm({ onComplete, loading: parentLoading }: { onComplete: () => void, loading: boolean }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [submitted, setSubmitted] = useState(false);
 
-    const handleRegister = async (e: React.FormEvent) => {
+    const handleRegister = async (e: any) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
         const supabase = createClient();
 
-        // We want to LINK the current anon user to this new email
+        // Set redirect cookie so confirmation email link lands on /welcome
+        document.cookie = `auth_redirect=/welcome; path=/; max-age=3600`;
+
+        // Try to upgrade anon user to email account, or sign up fresh
         const { error: updateError } = await supabase.auth.updateUser({ email, password });
 
         if (updateError) {
-            // Fallback: If not anon, or if update fails, try signUp
             const { error: signUpError } = await supabase.auth.signUp({ email, password });
             if (signUpError) {
                 setError(signUpError.message);
@@ -306,8 +306,8 @@ function RegistrationForm({ onComplete, loading: parentLoading }: { onComplete: 
             }
         }
 
-        // Success
-        onComplete();
+        setLoading(false);
+        setSubmitted(true);
     };
 
     const handleOAuth = async (provider: 'google' | 'apple' | 'facebook') => {
@@ -341,6 +341,25 @@ function RegistrationForm({ onComplete, loading: parentLoading }: { onComplete: 
     };
 
     const isLoading = loading || parentLoading;
+
+    // Show confirmation message after email form submission
+    if (submitted) {
+        return (
+            <div className="text-left">
+                <div className="flex justify-center mb-6">
+                    <div className="bg-green-100 p-4 rounded-full">
+                        <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">Check your email</h3>
+                <p className="text-sm text-gray-500 text-center">
+                    We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account and continue to the next stage.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <form onSubmit={handleRegister} className="space-y-4 text-left">
@@ -410,12 +429,6 @@ function RegistrationForm({ onComplete, loading: parentLoading }: { onComplete: 
         </form>
     );
 }
-
-// Helper for Auth
-import { Provider } from "@supabase/supabase-js"; // Ensure we have this import or type it as string
-// Since we can't easily add imports at the top without context, I will just cast string
-
-function AdditionalImports() { /* noop */ }
 
 function LeadForm({ onComplete }: { onComplete: () => void }) {
     const [loading, setLoading] = useState(false);

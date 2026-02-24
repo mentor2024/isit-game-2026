@@ -22,6 +22,7 @@ export default function CreatePollForm({
     // New states from diff
     const [title, setTitle] = useState("");
     const [pollType, setPollType] = useState("isit_text");
+    const [showDefinitions, setShowDefinitions] = useState(false);
     const [attributeId, setAttributeId] = useState("");
 
     // Rich Text State

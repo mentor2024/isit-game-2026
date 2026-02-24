@@ -31,6 +31,7 @@ export async function createPoll(formData: FormData) {
     const instructions = formData.get("instructions") as string;
     const feedback_correct = formData.get("feedback_correct") as string;
     const feedback_incorrect = formData.get("feedback_incorrect") as string;
+    
 
     // Four new consensus fields
     const consensus_1_majority = formData.get("consensus_1_majority") as string;
@@ -253,6 +254,8 @@ export async function updatePoll(formData: FormData) {
 
     const izzy_image = formData.get("izzy_image") as string;
     const izzy_quote = formData.get("izzy_quote") as string;
+    const izzy_quote_correct = formData.get("izzy_quote_correct") as string;
+    const izzy_quote_incorrect = formData.get("izzy_quote_incorrect") as string;
 
     if (!pollId || !title) {
         throw new Error("Missing required fields");
@@ -288,7 +291,10 @@ export async function updatePoll(formData: FormData) {
         level,
         poll_order,
         izzy_image,
-        izzy_quote: cleanHtml(izzy_quote)
+        izzy_quote: cleanHtml(izzy_quote),
+        izzy_quote_correct: cleanHtml(izzy_quote_correct),
+        izzy_quote_incorrect: cleanHtml(izzy_quote_incorrect),
+        show_definitions: formData.get("show_definitions") === "true"
     };
 
     if (formData.has("score_12")) {

@@ -147,30 +147,32 @@ function ConsensusResult({
 }
 
 // --- Izzy Dialogue Overlay ---
+// Floats fixed to the right of the main content area, vertically centered.
+// Word bubble sits above Izzy with the tail pointing down toward him.
 function IzzyDialogue({ image, quote }: { image: string, quote: string }) {
     return (
-        <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8 w-full animate-in slide-in-from-bottom-4 fade-in duration-500">
-            <div className="relative order-2 md:order-1 flex-1 max-w-sm">
-                <div className="bg-white border-4 border-purple-500 rounded-3xl p-6 shadow-xl relative z-10">
-                    <div
-                        className="text-lg md:text-xl font-bold text-gray-800 [&>p]:mb-2 last:[&>p]:mb-0 [&_strong]:text-purple-700"
-                        dangerouslySetInnerHTML={{ __html: quote }}
-                    />
-                </div>
-                {/* Speech Bubble Tail */}
-                <div className="absolute -bottom-4 left-1/2 md:top-1/2 md:-right-5 md:left-auto md:-translate-y-1/2 -translate-x-1/2 md:translate-x-0 w-8 h-8 bg-white border-b-4 border-r-4 md:border-b-0 md:border-t-4 md:border-r-4 border-purple-500 rotate-45 z-0" />
+        <div className="fixed right-[calc(50%-600px)] top-11/18 -translate-y-1/2 z-50 flex flex-col items-center w-52 pointer-events-none select-none animate-in slide-in-from-right-4 fade-in duration-500">
+ 
+            {/* Word bubble */}
+            <div className="relative bg-white border-4 border-purple-500 rounded-3xl px-4 py-3 shadow-xl w-full">
+                <div
+                    className="text-xs font-bold text-gray-800 [&>p]:mb-1 last:[&>p]:mb-0 [&_strong]:text-purple-700 leading-snug"
+                    dangerouslySetInnerHTML={{ __html: quote }}
+                />
+                {/* Tail — points downward from bottom-center toward Izzy */}
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-b-4 border-r-4 border-purple-500 rotate-45 z-0" />
             </div>
 
-            <div className="order-1 md:order-2 shrink-0">
-                <img
-                    src={`/images/izzy/${image}`}
-                    alt="Izzy"
-                    className="w-48 h-48 md:w-64 md:h-64 object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-300"
-                />
-            </div>
+            {/* Izzy image */}
+            <img
+                src={`/images/izzy/${image}`}
+                alt="Izzy"
+                className="w-100 h-100 object-contain drop-shadow-xl mt-3 hover:scale-105 transition-transform duration-300"
+            />
         </div>
     );
 }
+
 
 // --- Main Interface ---
 export default function VotingInterface({

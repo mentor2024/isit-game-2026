@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
 // Note: You might not have use-debounce installed. 
 // I'll stick to a simpler "Apply" button or just useEffect if no debouncer in package.json.
@@ -17,6 +17,12 @@ export default function PollFilters() {
     const [level, setLevel] = useState(searchParams.get("level") || "");
     const [order, setOrder] = useState(searchParams.get("poll_order") || "");
     const [search, setSearch] = useState(searchParams.get("search") || "");
+    useEffect(() => {
+        const current = window.location.search;
+        if (current) {
+            sessionStorage.setItem('pollsFilterUrl', '/admin/polls' + current);
+        }
+}, [searchParams]);
 
     // ...
 
