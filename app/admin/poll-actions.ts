@@ -41,6 +41,7 @@ export async function createPoll(formData: FormData) {
 
     const izzy_image = formData.get("izzy_image") as string;
     const izzy_quote = formData.get("izzy_quote") as string;
+    const show_definitions = formData.get("show_definitions") === "true";
 
     const stage = parseInt(formData.get("stage") as string);
     // If NaN, default to 1. If 0, keep 0.
@@ -98,7 +99,8 @@ export async function createPoll(formData: FormData) {
             quad_scores,
             quad_feedback,
             izzy_image,
-            izzy_quote: cleanHtml(izzy_quote)
+            izzy_quote: cleanHtml(izzy_quote),
+            show_definitions: formData.get("show_definitions") === "true"
         })
         .select()
         .single();

@@ -749,13 +749,13 @@ export default async function PollPage({
                 {/* Current Poll Title */}
                 <h1 className="text-4xl font-black text-gray-900 mb-4 flex flex-wrap items-baseline justify-center gap-x-2">
                     {activePoll.show_definitions
-                        ? displayTitle.split(" ").map((word, i) => (
+                        ? displayTitle.split(" ").map((word: string, i: number) => (
                             <WordWithDefinition key={i} word={word} />
-                          ))
+                        ))
                         : displayTitle
                     }
                 </h1>
-                
+
                 {/* Current Poll Instructions */}
                 <div
                     className="text-xl font-medium text-gray-700 [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"

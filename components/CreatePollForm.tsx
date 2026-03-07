@@ -191,6 +191,23 @@ export default function CreatePollForm({
                         </div>
                     </div>
 
+                    {/* Show Definitions Toggle — ISIT Text and ISIT Text Plus only */}
+                    {(pollType === 'isit_text' || pollType === 'isit_text_plus') && (
+                        <div className="flex items-center gap-3">
+                            <input type="hidden" name="show_definitions" value={showDefinitions ? "true" : "false"} />
+                            <button
+                                type="button"
+                                onClick={() => setShowDefinitions(v => !v)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showDefinitions ? 'bg-purple-600' : 'bg-gray-300'}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${showDefinitions ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                            <label className="text-sm font-bold text-gray-700">
+                                Show word definitions on hover
+                            </label>
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-2">
                         <input type="hidden" name="instructions" value={instructions} />
                         <RichTextEditor

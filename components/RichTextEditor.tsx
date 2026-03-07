@@ -42,11 +42,10 @@ function ToolbarButton({
                 onClick();
             }}
             title={title}
-            className={`px-1.5 py-0.5 rounded text-xs font-medium transition-colors ${
-                active
-                    ? "bg-gray-800 text-white"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-            }`}
+            className={`px-1.5 py-0.5 rounded text-xs font-medium transition-colors ${active
+                ? "bg-gray-800 text-white"
+                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                }`}
         >
             {children}
         </button>
@@ -108,7 +107,7 @@ export default function RichTextEditor({
         if (!editor) return;
         const current = editor.getHTML();
         if (current !== value) {
-            editor.commands.setContent(value ?? "", false);
+            editor.commands.setContent(value ?? "", { emitUpdate: false });
         }
     }, [value, editor]);
 
@@ -119,7 +118,7 @@ export default function RichTextEditor({
             setSourceValue(editor?.getHTML() ?? "");
         } else {
             // switching BACK to visual — push source into editor
-            editor?.commands.setContent(sourceValue, false);
+            editor?.commands.setContent(sourceValue, { emitUpdate: false });
             onChange(sourceValue);
         }
         setIsSourceView((v) => !v);
@@ -135,9 +134,9 @@ export default function RichTextEditor({
         const url = window.prompt("Enter URL", previous ?? "https://");
         if (url === null) return; // cancelled
         if (url === "") {
-            editor.chain().focus().extendMarkToWordBoundary().unsetLink().run();
+            editor.chain().focus().extendMarkRange("link").unsetLink().run();
         } else {
-            editor.chain().focus().extendMarkToWordBoundary().setLink({ href: url }).run();
+            editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
         }
     }, [editor]);
 
