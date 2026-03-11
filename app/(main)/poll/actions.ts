@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { SupabaseClient, User } from '@supabase/supabase-js';
 import { cookies } from "next/headers";
 import { getServerSupabase, getServiceRoleClient } from "@/lib/supabaseServer";
+import { getUserMetrics } from "@/lib/metrics";
 
 export type SubmitVoteResult = {
     success: boolean;
@@ -30,6 +32,10 @@ export type SubmitVoteResult = {
     total_votes?: number;
     points_awarded?: number;
     stage_multiplier?: number;
+    wordCloudData?: {
+        top5: { id: string, word: string, weight: number }[];
+        metrics: any;
+    };
 };
 
 
@@ -204,9 +210,6 @@ export async function checkLevelCompletion(supabase: any, user: any, pollId: str
             } else {
                 console.log(`[CheckCompletion] Level Complete. Path Selector active.`);
             }
-
-            revalidatePath('/', 'layout');
-
             return {
                 levelUp: true,
                 showInterstitial, // Return this new flag
@@ -326,7 +329,7 @@ export async function submitVote(pollId: string, isWordId: string, itWordId: str
             const feedback = r.is_majority
                 ? (pollMeta?.feedback_majority || 'You voted with the majority!')
                 : (pollMeta?.feedback_minority || 'You voted with the minority.');
-            const levelUpResult = await checkLevelCompletion(supabase, pollId, user.id);
+            const levelUpResult = await checkLevelCompletion(supabase, user, pollId);
             return {
                 success: true,
                 correct: false,
@@ -445,7 +448,9 @@ export async function submitVote(pollId: string, isWordId: string, itWordId: str
         // 3. Check Level Completion
         const completionResult = await checkLevelCompletion(supabase, user, pollId);
 
-        revalidatePath('/', 'layout');
+        if (!completionResult.levelUp) {
+            revalidatePath('/', 'layout');
+        }
 
         return { success: true, correct, has_answer, points: pointsEarned, ...completionResult };
 
@@ -661,8 +666,10 @@ export async function submitQuadVote(pollId: string, assignments: QuadAssignment
 
             if (nextPoll) nextPollId = nextPoll.id;
         }
+        if (!completionResult.levelUp) {
+            revalidatePath('/', 'layout');
+        }
 
-        revalidatePath('/', 'layout');
         return { success: true, correct: points > 0, has_answer: true, nextPollId, ...completionResult };
 
     } catch (e: any) {
@@ -838,8 +845,9 @@ export async function submitMCVote(pollId: string, selectedObjectId: string): Pr
                 .maybeSingle();
             if (nextPoll) nextPollId = nextPoll.id;
         }
-
-        revalidatePath('/', 'layout');
+        if (!completionResult.levelUp) {
+            revalidatePath('/', 'layout');
+        }
         return { success: true, correct: isCorrect, has_answer: true, nextPollId, ...completionResult };
 
     } catch (e: any) {
@@ -849,6 +857,102 @@ export async function submitMCVote(pollId: string, selectedObjectId: string): Pr
 }
 
 
+export async function castLikertVote(pollId: string, objectId: string, rating: number): Promise<SubmitVoteResult> {
+    try {
+        const supabase = await getServerSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            const { data: poll } = await supabase.from('polls').select('stage, level, poll_order').eq('id', pollId).single();
+            if (poll && poll.stage !== 0) return { success: false, error: "Unauthorized" };
+
+            // Save to Cookie for Anons
+            const cookieStore = await cookies();
+            const existing = cookieStore.get('isit_anon_progress')?.value;
+            let votes = existing ? JSON.parse(existing) : [];
+            if (!votes.find((v: any) => v.pollId === pollId)) {
+                // For likerts, rating is saved as points
+                votes.push({ pollId, points: rating, correct: true, timestamp: Date.now() });
+                cookieStore.set('isit_anon_progress', JSON.stringify(votes), { path: '/' });
+            }
+
+            let nextPollId: string | undefined = undefined;
+            let levelUp = false;
+            let showInterstitial = true;
+
+            if (poll) {
+                const { data: nextPoll } = await supabase
+                    .from('polls')
+                    .select('id')
+                    .eq('stage', poll.stage)
+                    .eq('level', poll.level)
+                    .gt('poll_order', poll.poll_order)
+                    .order('poll_order', { ascending: true })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (nextPoll) {
+                    nextPollId = nextPoll.id;
+                } else {
+                    levelUp = true;
+                    const { data: levelConfig } = await supabase
+                        .from('level_configurations')
+                        .select('show_interstitial')
+                        .eq('stage', poll.stage)
+                        .eq('level', poll.level)
+                        .maybeSingle();
+                    showInterstitial = levelConfig?.show_interstitial !== false;
+                }
+            }
+
+            return { success: true, correct: true, has_answer: true, nextPollId, points: rating, levelUp, showInterstitial };
+        }
+
+        const serviceClient = getServiceRoleClient();
+
+        await serviceClient.from('poll_votes').delete().eq('user_id', user.id).eq('poll_id', pollId);
+
+        const { error: insertError } = await serviceClient
+            .from('poll_votes')
+            .insert({
+                poll_id: pollId,
+                user_id: user.id,
+                selected_object_id: objectId,
+                chosen_side: null, // Note: DB schema allows null unless explicitly typed as NOT NULL. Wait! If NOT NULL, we MUST set it.
+                is_correct: true, // surveys don't usually have "incorrect" unless defined.
+                points_earned: rating
+            });
+
+        // Let's verify if chosen_side is strictly required and constrained to 'IS'/'IT' via CHECK.
+        if (insertError) {
+            console.error("castLikertVote Insert Error:", insertError);
+            throw new Error(insertError.message);
+        }
+
+        const completionResult = await checkLevelCompletion(supabase, user, pollId);
+
+        let nextPollId: string | undefined = undefined;
+        const { data: poll } = await supabase.from('polls').select('stage, level, poll_order').eq('id', pollId).single();
+        if (poll && !completionResult.levelUp) {
+            const { data: nextPoll } = await supabase.from('polls').select('id')
+                .eq('stage', poll.stage)
+                .eq('level', poll.level)
+                .gt('poll_order', poll.poll_order)
+                .order('poll_order', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+            if (nextPoll) nextPollId = nextPoll.id;
+        }
+        if (!completionResult.levelUp) {
+            revalidatePath('/', 'layout');
+        }
+        return { success: true, correct: true, has_answer: true, nextPollId, ...completionResult };
+
+    } catch (e: any) {
+        console.error("castLikertVote Exception:", e);
+        return { success: false, error: e.message };
+    }
+}
 
 export async function submitLead(formData: FormData) {
     const firstName = formData.get('firstName') as string;
@@ -861,4 +965,219 @@ export async function submitLead(formData: FormData) {
 
     if (error) return { success: false, error: error.message };
     return { success: true };
+}
+
+// ----------------------------------------------------
+// Word Cloud Actions
+// ----------------------------------------------------
+
+export async function addDescriptor(pollId: string, word: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+        const cleanWord = word.trim();
+        if (!cleanWord) return { success: false, error: "Word cannot be empty" };
+        if (cleanWord.length > 50) return { success: false, error: "Word too long" };
+
+        const supabase = await getServerSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const serviceClient = getServiceRoleClient();
+
+        // Prevent exact duplicates per poll
+        const { data: existing } = await serviceClient
+            .from('poll_descriptors')
+            .select('id')
+            .eq('poll_id', pollId)
+            .ilike('word', cleanWord)
+            .maybeSingle();
+
+        if (existing) {
+            return { success: false, error: "That word has already been added." };
+        }
+
+        const { data, error } = await serviceClient
+            .from('poll_descriptors')
+            .insert({
+                poll_id: pollId,
+                word: cleanWord,
+                created_by: user?.id || null
+            })
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+
+        revalidatePath('/', 'layout');
+        return { success: true, data };
+
+    } catch (e: any) {
+        console.error("addDescriptor Error:", e);
+        return { success: false, error: e.message };
+    }
+}
+
+export async function getDescriptors(pollId: string) {
+    try {
+        const serviceClient = getServiceRoleClient();
+        const { data, error } = await serviceClient
+            .from('poll_descriptors')
+            .select('*')
+            .eq('poll_id', pollId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw new Error(error.message);
+        return { success: true, data };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function castWordCloudVote(pollId: string, objectId: string, rankedWords: { id: string, word: string, rank: number }[]): Promise<SubmitVoteResult> {
+    try {
+        const supabase = await getServerSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            // Anon logic follows the exact pattern of likert/standard votes
+            const { data: poll } = await supabase.from('polls').select('stage, level, poll_order').eq('id', pollId).single();
+            if (poll && poll.stage !== 0) return { success: false, error: "Unauthorized" };
+
+            const cookieStore = await cookies();
+            const existing = cookieStore.get('isit_anon_progress')?.value;
+            let votes = existing ? JSON.parse(existing) : [];
+            if (!votes.find((v: any) => v.pollId === pollId)) {
+                // Determine a base point score for Anon participation (e.g. 1 point for voting)
+                votes.push({ pollId, points: 1, correct: true, timestamp: Date.now() });
+                cookieStore.set('isit_anon_progress', JSON.stringify(votes), { path: '/' });
+            }
+
+            let nextPollId: string | undefined = undefined;
+            let levelUp = false;
+            let showInterstitial = true;
+
+            if (poll) {
+                const { data: nextPoll } = await supabase
+                    .from('polls')
+                    .select('id')
+                    .eq('stage', poll.stage)
+                    .eq('level', poll.level)
+                    .gt('poll_order', poll.poll_order)
+                    .order('poll_order', { ascending: true })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (nextPoll) {
+                    nextPollId = nextPoll.id;
+                } else {
+                    levelUp = true;
+                    showInterstitial = true;
+                }
+            }
+            return { success: true, correct: true, has_answer: true, nextPollId, points: 1, levelUp, showInterstitial };
+        }
+
+        const serviceClient = getServiceRoleClient();
+
+        // Delete existing vote
+        await serviceClient.from('poll_votes').delete().eq('user_id', user.id).eq('poll_id', pollId);
+
+        // --- DEVIANCE SCORING MATH ---
+        // 1. Fetch all prior vote_data for this poll
+        const { data: allVotes } = await serviceClient
+            .from('poll_votes')
+            .select('vote_data')
+            .eq('poll_id', pollId)
+            .not('vote_data', 'is', null);
+
+        // Aggregate weights
+        const weights: Record<string, { id: string, word: string, weight: number }> = {};
+
+        // Include the current player's vote in the consensus so the first player has a baseline
+        const allVoteData = (allVotes || []).map(v => v.vote_data as any[]).filter(Boolean);
+        allVoteData.push(rankedWords);
+
+        for (const voteArray of allVoteData) {
+            for (const item of voteArray) {
+                if (!weights[item.id]) {
+                    weights[item.id] = { id: item.id, word: item.word, weight: 0 };
+                }
+                const pts = Math.max(0, 6 - item.rank); // Rank 1 = 5pts, Rank 5 = 1pt
+                weights[item.id].weight += pts;
+            }
+        }
+
+        // Sort to find top 5 globally
+        const top5 = Object.values(weights)
+            .sort((a, b) => b.weight - a.weight)
+            .slice(0, 5);
+
+        const globalTop5Map: Record<string, number> = {};
+        top5.forEach((item, index) => {
+            globalTop5Map[item.id] = index + 1;
+        });
+
+        // Calculate points based on the approved 3/1/0 scale
+        let completionPoints = 0;
+        for (const item of rankedWords) {
+            const globalRank = globalTop5Map[item.id];
+            if (globalRank !== undefined) {
+                if (globalRank === item.rank) {
+                    completionPoints += 3; // EXACT MATCH
+                } else {
+                    completionPoints += 1; // IN TOP 5, DIFFERENT RANK
+                }
+            }
+        }
+        // --- END DEVIANCE SCORING MATH ---
+
+        const { error: insertError } = await serviceClient
+            .from('poll_votes')
+            .insert({
+                poll_id: pollId,
+                user_id: user.id,
+                selected_object_id: objectId,
+                chosen_side: null, // Bypassing IS/IT constraint because of earlier DB migrations
+                is_correct: true,
+                points_earned: completionPoints,
+                vote_data: rankedWords
+            });
+
+        if (insertError) throw new Error(insertError.message);
+
+        const completionResult = await checkLevelCompletion(supabase, user, pollId);
+
+        let nextPollId: string | undefined = undefined;
+        const { data: poll } = await supabase.from('polls').select('stage, level, poll_order').eq('id', pollId).single();
+        if (poll && !completionResult.levelUp) {
+            const { data: nextPoll } = await supabase.from('polls').select('id')
+                .eq('stage', poll.stage)
+                .eq('level', poll.level)
+                .gt('poll_order', poll.poll_order)
+                .order('poll_order', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+            if (nextPoll) nextPollId = nextPoll.id;
+        }
+
+        // Get updated metrics to return to the client
+        const metrics = await getUserMetrics(supabase, user.id);
+        if (!completionResult.levelUp) {
+            revalidatePath('/', 'layout');
+        }
+        return {
+            success: true,
+            correct: true,
+            has_answer: true,
+            nextPollId,
+            points: completionPoints,
+            ...completionResult,
+            wordCloudData: {
+                top5,
+                metrics
+            }
+        };
+
+    } catch (e: any) {
+        console.error("castWordCloudVote Exception:", e);
+        return { success: false, error: e.message };
+    }
 }

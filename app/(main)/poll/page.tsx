@@ -4,7 +4,11 @@ import VotingInterface from "@/components/VotingInterface";
 import Link from "next/link";
 import QuadGroupingInterface from "@/components/QuadGroupingInterface";
 import MultipleChoiceInterface from "@/components/MultipleChoiceInterface";
+import LikertPollInterface from "@/components/LikertPollInterface";
+import Likert10PollInterface from "@/components/Likert10PollInterface";
+import WordCloudInterface from "@/components/WordCloudInterface";
 import LevelCompleteScreen from "@/components/LevelCompleteScreen";
+import LevelIntroScreen from "@/components/LevelIntroScreen";
 import { ChevronRight, MoveRight } from "lucide-react";
 import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
 import { advanceLevel } from "@/app/(main)/poll/actions";
@@ -14,6 +18,7 @@ import { resolveDynamicMessageVariables } from "@/lib/server/messageVariables";
 import FeedbackDialog from "@/components/FeedbackDialog";
 import DiscussionForum from "@/components/discussion/DiscussionForum";
 import WordWithDefinition from "@/components/WordWithDefinition";
+import IsItRails from "@/components/IsItRails";
 
 export const dynamic = 'force-dynamic';
 
@@ -428,24 +433,50 @@ export default async function PollPage({
                         }
                     }
 
+                    if (currentStage === 0) {
+                        return (
+                            <LevelCompleteScreen
+                                stage={currentStage}
+                                level={currentLevel}
+                                score={pointsEarned + bonus}
+                                pointsEarned={pointsEarned}
+                                bonus={bonus}
+                                dq={dq}
+                                tier={tier}
+                                nextStage={nextStage}
+                                nextLevel={nextLevel}
+                                isStageComplete={nextStage > currentStage}
+                                customTitle={dynamicTitle}
+                                customMessage={dynamicMessage}
+                                assessmentContent={resolvedAssessmentContent}
+                                onAdvance={advanceLevel}
+                                isLoggedIn={!!user && !user.is_anonymous}
+                                cumulativePercent={currentStage === 0 ? aq : undefined}
+                            />
+                        );
+                    }
+
+                    // For stages 1+, show the new Intro Screen
+                    const { data: nextLevelConfig } = await supabase
+                        .from('level_configurations')
+                        .select('intro_content, izzy_intro_image')
+                        .eq('stage', nextStage)
+                        .eq('level', nextLevel)
+                        .maybeSingle();
+
+                    // Server action wrapper
+                    const handleStartLevel = async () => {
+                        "use server";
+                        await advanceLevel(nextStage, nextLevel);
+                    };
+
                     return (
-                        <LevelCompleteScreen
-                            stage={currentStage}
-                            level={currentLevel}
-                            score={pointsEarned + bonus}
-                            pointsEarned={pointsEarned}
-                            bonus={bonus}
-                            dq={dq}
-                            tier={tier}
-                            nextStage={nextStage}
-                            nextLevel={nextLevel}
-                            isStageComplete={nextStage > currentStage}
-                            customTitle={dynamicTitle}
-                            customMessage={dynamicMessage}
-                            assessmentContent={resolvedAssessmentContent}
-                            onAdvance={advanceLevel}
-                            isLoggedIn={!!user && !user.is_anonymous}
-                            cumulativePercent={currentStage === 0 ? aq : undefined}
+                        <LevelIntroScreen
+                            stage={nextStage}
+                            level={nextLevel}
+                            introContent={nextLevelConfig?.intro_content || ""}
+                            izzyImage={nextLevelConfig?.izzy_intro_image || "/images/izzy/izzy_6_640x960.png"}
+                            onStartLevel={handleStartLevel}
                         />
                     );
 
@@ -700,7 +731,32 @@ export default async function PollPage({
         .maybeSingle();
 
     const isDiscussionEnabled = levelConfig?.enabled_modules?.includes('discussion_forum');
-    // ----------------------------------------
+    const isRailsEnabled = levelConfig?.enabled_modules?.includes('is_it_rails');
+
+    // --- Fetch IS IT Rails Data ---
+    let railItems: { id: string, text: string, side: "IS" | "IT" }[] = [];
+    if (isRailsEnabled && user && activePoll) {
+        // Fetch ALL votes for this user in the CURRENT STAGE to populate the Rails
+        const { data: votes } = await supabase
+            .from('poll_votes')
+            .select(`
+                id,
+                chosen_side,
+                poll_id,
+                polls!inner(stage),
+                poll_objects(text)
+            `)
+            .eq('user_id', user.id)
+            .eq('polls.stage', activePoll.stage);
+
+        if (votes) {
+            railItems = votes.map((v: any) => ({
+                id: v.poll_id || v.id,
+                side: v.chosen_side,
+                text: v.poll_objects?.text || "Unknown"
+            }));
+        }
+    }
     // --------------------------------------------------------
 
     return (
@@ -763,36 +819,62 @@ export default async function PollPage({
                 />
             </div>
 
-            <main className="max-w-3xl w-full bg-white rounded-xl shadow-lg overflow-hidden">
-                {/* Inner Header Removed */}
+            <div className="w-full relative z-10 flex justify-center">
+                <IsItRails items={railItems} hideRails={!isRailsEnabled}>
+                    <main className="max-w-3xl w-full bg-white rounded-xl shadow-lg overflow-hidden shrink-0">
+                        {/* Inner Header Removed */}
 
-                {activePoll.type === 'multiple_choice' ? (
-                    <MultipleChoiceInterface
-                        poll={activePoll}
-                        userId={user?.id || 'anon'}
-                        nextPollId={nextPollId}
-                        currentStageScore={pointsEarnedInStage}
-                    />
-                ) : activePoll.type === 'quad_sorting' ? (
-                    <QuadGroupingInterface
-                        key={activePoll.id}
-                        pollId={activePoll.id}
-                        objects={objects}
-                    />
-                ) : (
-                    <VotingInterface
-                        key={activePoll.id}
-                        pollId={activePoll.id}
-                        objects={objects}
-                        sides={sides}
-                        pollType={activePoll.type}
-                        feedbackMajority={activePoll.feedback_majority}
-                        feedbackMinority={activePoll.feedback_minority}
-                        izzyImage={activePoll.izzy_image}
-                        izzyQuote={activePoll.izzy_quote}
-                    />
-                )}
-            </main>
+                        {activePoll.type === 'multiple_choice' ? (
+                            <MultipleChoiceInterface
+                                poll={activePoll}
+                                userId={user?.id || 'anon'}
+                                nextPollId={nextPollId}
+                                currentStageScore={pointsEarnedInStage}
+                            />
+                        ) : activePoll.type === 'quad_sorting' ? (
+                            <QuadGroupingInterface
+                                key={activePoll.id}
+                                pollId={activePoll.id}
+                                objects={objects}
+                            />
+                        ) : activePoll.type === 'likert_5' ? (
+                            <LikertPollInterface
+                                key={activePoll.id}
+                                poll={activePoll}
+                                userId={user?.id || 'anon'}
+                                nextPollId={nextPollId}
+                                currentStageScore={pointsEarnedInStage}
+                            />
+                        ) : activePoll.type === 'likert_10' ? (
+                            <Likert10PollInterface
+                                key={activePoll.id}
+                                poll={activePoll}
+                                userId={user?.id || 'anon'}
+                                nextPollId={nextPollId}
+                                currentStageScore={pointsEarnedInStage}
+                            />
+                        ) : activePoll.type === 'word_cloud' ? (
+                            <WordCloudInterface
+                                key={activePoll.id}
+                                pollId={activePoll.id}
+                                baseObject={objects[0]}
+                            />
+                        ) : (
+                            <VotingInterface
+                                key={activePoll.id}
+                                pollId={activePoll.id}
+                                objects={objects}
+                                sides={sides}
+                                pollType={activePoll.type}
+                                feedbackMajority={activePoll.feedback_majority}
+                                feedbackMinority={activePoll.feedback_minority}
+                                izzyImage={activePoll.izzy_image}
+                                izzyQuote={activePoll.izzy_quote}
+                            />
+                        )}
+                    </main>
+                </IsItRails>
+            </div>
 
             {/* Discussion Forum Module */}
             {isDiscussionEnabled && activePoll && (

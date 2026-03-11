@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatLevel, formatStage, AVAILABLE_IZZY_IMAGES } from "@/lib/formatters";
 import { saveLevelConfig } from "@/app/admin/levels/actions";
 import RichTextEditor from "@/components/RichTextEditor";
 import VariableCheatSheet from "@/components/VariableCheatSheet";
@@ -14,6 +15,8 @@ type PathConfig = {
 
 type LevelConfig = {
     instructions: string;
+    intro_content?: string;
+    izzy_intro_image?: string;
     awareness_assessment?: string;
     enabled_modules: string[];
     path_selector_config?: PathConfig;
@@ -68,6 +71,9 @@ export default function LevelEditorForm({
 
     // Rich Text State (Cleaned on Init)
     const [instructions, setInstructions] = useState(cleanClientHtml(initialConfig?.instructions));
+    const [introContent, setIntroContent] = useState(cleanClientHtml(initialConfig?.intro_content));
+    const [izzyIntroImage, setIzzyIntroImage] = useState(initialConfig?.izzy_intro_image || "izzy_6_640x960.png");
+    const [showIzzyModal, setShowIzzyModal] = useState(false);
     const [awarenessAssessment, setAwarenessAssessment] = useState(cleanClientHtml(initialConfig?.awareness_assessment));
     // Ensure we parse by Tier Letter instead of array index to prevent shifting
     const tA = initialConfig?.score_tiers?.find(t => t.tier === 'A');
@@ -105,10 +111,16 @@ export default function LevelEditorForm({
 
         // Clean again on save just in case
         formData.set("instructions", cleanClientHtml(instructions));
+        if (introContent) formData.set("intro_content", cleanClientHtml(introContent));
+        if (izzyIntroImage) formData.set("izzy_intro_image", izzyIntroImage);
         if (awarenessAssessment) formData.set("awareness_assessment", cleanClientHtml(awarenessAssessment));
         formData.set("tier_a_message", cleanClientHtml(tierAMessage));
         formData.set("tier_b_message", cleanClientHtml(tierBMessage));
         formData.set("tier_c_message", cleanClientHtml(tierCMessage));
+
+        // Ensure modules are explicitly synced from React state
+        formData.delete("modules");
+        enabledModules.forEach(m => formData.append("modules", m));
 
         const result = await saveLevelConfig(stage, level, formData);
 
@@ -134,6 +146,60 @@ export default function LevelEditorForm({
                     placeholder="Enter instructions or congratulations message..."
                     heightClass="h-32"
                 />
+            </div>
+
+            {/* Intro Content (LevelIntroScreen) */}
+            <div className="mb-8 p-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
+                <h3 className="font-black text-xl mb-4 text-yellow-900 flex items-center gap-2">
+                    👋 Level Introduction (Izzy)
+                </h3>
+
+                <div className="flex flex-col md:flex-row gap-6 mb-6">
+                    {/* Image Selection */}
+                    <div className="flex flex-col items-start gap-3 w-full md:w-1/3">
+                        <label className="block text-sm font-bold text-yellow-900 uppercase">Image</label>
+                        <input type="hidden" name="izzy_intro_image" value={izzyIntroImage} />
+
+                        {izzyIntroImage ? (
+                            <div className="relative w-full h-48 bg-white rounded-xl border-2 border-yellow-300 p-2 overflow-hidden flex items-center justify-center">
+                                <img src={`/images/izzy/${izzyIntroImage.split('/').pop()}`} alt="Izzy Selected" className="max-h-full object-contain" />
+                                <button
+                                    type="button"
+                                    onClick={() => setIzzyIntroImage("")}
+                                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:scale-110"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="w-full h-48 bg-yellow-100 rounded-xl border-2 border-dashed border-yellow-300 flex items-center justify-center">
+                                <span className="text-yellow-600 font-medium">No Image</span>
+                            </div>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); setShowIzzyModal(true); }}
+                            className="w-full bg-yellow-600 text-white font-bold py-2 rounded-lg hover:bg-yellow-700 transition relative z-0"
+                        >
+                            Choose Image
+                        </button>
+                    </div>
+
+                    {/* Intro Content */}
+                    <div className="flex-1 flex flex-col gap-2">
+                        <input type="hidden" name="intro_content" value={introContent} />
+                        <VariableActionLabel label="Introductory Content" value={introContent} onUpdate={setIntroContent} />
+                        <div className="bg-white border-2 border-yellow-300 rounded-xl overflow-hidden shadow-inner h-full flex flex-col">
+                            <RichTextEditor
+                                value={introContent}
+                                onChange={setIntroContent}
+                                placeholder="Enter the introduction message for the beginning of this level..."
+                                heightClass="flex-1 min-h-[140px]"
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Awareness Assessment (Left Panel Content on LevelCompleteScreen) */}
@@ -406,6 +472,34 @@ export default function LevelEditorForm({
             {message && (
                 <div className={`mt-6 text-center font-bold p-4 rounded-xl ${message.includes("Error") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
                     {message}
+                </div>
+            )}
+
+            {showIzzyModal && (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden text-left">
+                        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                            <h3 className="font-black text-xl">Select Izzy Thumbnail</h3>
+                            <button type="button" onClick={() => setShowIzzyModal(false)} className="text-gray-500 hover:text-black font-bold p-2">Close</button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 bg-gray-100">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                {AVAILABLE_IZZY_IMAGES.map((img) => (
+                                    <button
+                                        key={img}
+                                        type="button"
+                                        onClick={() => {
+                                            setIzzyIntroImage(img);
+                                            setShowIzzyModal(false);
+                                        }}
+                                        className={`bg-white rounded-xl p-0 overflow-hidden border-4 transition-all hover:scale-105 shadow-sm hover:shadow-md h-32 flex items-center justify-center ${izzyIntroImage === img ? 'border-yellow-500 bg-yellow-50' : 'border-transparent'}`}
+                                    >
+                                        <img src={`/images/izzy/${img}`} alt={img} className="max-h-full object-contain drop-shadow-md" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </form>

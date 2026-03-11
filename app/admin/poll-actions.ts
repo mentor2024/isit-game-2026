@@ -31,7 +31,7 @@ export async function createPoll(formData: FormData) {
     const instructions = formData.get("instructions") as string;
     const feedback_correct = formData.get("feedback_correct") as string;
     const feedback_incorrect = formData.get("feedback_incorrect") as string;
-    
+
 
     // Four new consensus fields
     const consensus_1_majority = formData.get("consensus_1_majority") as string;
@@ -118,6 +118,8 @@ export async function createPoll(formData: FormData) {
         } else if (type === 'multiple_choice') {
             const explicitCount = parseInt(formData.get("object_count") as string);
             objectCount = !isNaN(explicitCount) ? explicitCount : 5;
+        } else if (type === 'likert_5' || type === 'likert_10' || type === 'word_cloud') {
+            objectCount = 1;
         }
 
         for (let i = 1; i <= objectCount; i++) {
@@ -129,9 +131,11 @@ export async function createPoll(formData: FormData) {
             let text = cleanHtml(textInput);
 
             // For Quad Sorting OR Image ISIT, we expect images
-            const needsImage = type === "isit_image" || type === "quad_sorting";
+            // For Likert/Word Cloud, we expect media if they selected something other than text
+            const mediaType = formData.get(`obj${i}_media_type`) as string;
+            const needsMedia = type === "isit_image" || type === "quad_sorting" || ((type === "likert_5" || type === "likert_10" || type === "word_cloud") && mediaType && mediaType !== 'text');
 
-            if (needsImage) {
+            if (needsMedia) {
                 if (!fileInput || fileInput.size === 0) throw new Error(`Image for Object ${i} is missing`);
 
                 // Upload Image

@@ -138,12 +138,18 @@ export default async function PollDetailsPage({ params }: { params: Promise<{ id
                                     <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${poll.type === "isit_image" ? "bg-blue-100 text-blue-800" :
                                         poll.type === "quad_sorting" ? "bg-purple-100 text-purple-800" :
                                             poll.type === "multiple_choice" ? "bg-green-100 text-green-800" :
-                                                "bg-gray-100 text-gray-800"
+                                                poll.type === "likert_5" ? "bg-orange-100 text-orange-800" :
+                                                    poll.type === "likert_10" ? "bg-teal-100 text-teal-800" :
+                                                        poll.type === "word_cloud" ? "bg-fuchsia-100 text-fuchsia-800" :
+                                                            "bg-gray-100 text-gray-800"
                                         }`}>
                                         {poll.type === "isit_image" ? "ISIT Image" :
                                             poll.type === "quad_sorting" ? "Quad Sorting" :
                                                 poll.type === "multiple_choice" ? "Multi-choice (points)" :
-                                                    "ISIT Text"}
+                                                    poll.type === "likert_5" ? "5-Point Likert" :
+                                                        poll.type === "likert_10" ? "10-Point Likert" :
+                                                            poll.type === "word_cloud" ? "Word Cloud" :
+                                                                "ISIT Text"}
                                     </span>
                                 </div>
                             </div>

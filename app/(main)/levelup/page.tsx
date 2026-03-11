@@ -156,9 +156,8 @@ export default async function LevelUpPage({
     });
 
     // --- Dynamic Messaging Logic ---
-    let dynamicTitle = undefined;
-    let dynamicMessage = undefined;
     let computedTier = "C"; // Default fallback
+    let matchedTierMessage = "";
 
     if (config?.score_tiers) {
         // Type definition for safety
@@ -168,86 +167,85 @@ export default async function LevelUpPage({
         // Sort descending by min_score
         const sortedTiers = [...tiers].sort((a, b) => b.min_score - a.min_score);
 
-        // Find match
-        const matched = sortedTiers.find(t => totalScore >= t.min_score);
+        // Find match using Awareness Quotient (AQ)
+        const matched = sortedTiers.find(t => awarenessQuotient >= t.min_score);
 
         if (matched) {
-            dynamicTitle = matched.title;
-            dynamicMessage = matched.message;
+            computedTier = matched.tier;
+            let tMessage = matched.message;
 
-            if (user && dynamicMessage) {
+            if (user && tMessage) {
                 try {
-                    dynamicMessage = await resolveDynamicMessageVariables(supabase, dynamicMessage, user.id, { stage: stageNum, level: levelNum });
+                    tMessage = await resolveDynamicMessageVariables(supabase, tMessage, user.id, { stage: stageNum, level: levelNum });
                 } catch (e) {
-                    console.error("Error substituting Q&A for dynamic message:", e);
+                    console.error("Error substituting Q&A for score tier message:", e);
                 }
             }
 
-            dynamicMessage = replaceMessageVariables(dynamicMessage, {
+            matchedTierMessage = replaceMessageVariables(tMessage, {
                 dq: overallDq,
                 aq: awarenessQuotient,
                 pointTotal: rawScore,
                 lastDq,
                 lastScore
             });
-            computedTier = matched.tier;
         }
     }
 
     // Override searchParams tier with computed tier if config exists (ensures consistency)
     const displayTier = config?.score_tiers ? computedTier : (tier || 'C');
 
-    // Level Scores Content (Left Rail)
+    // Level Scores Content (Now 1/3 Left Column)
     const LevelScoresContent = modules.includes('level_scores') ? (
-        <div key="level-scores" className="w-full min-h-[260px] flex flex-col justify-start bg-black/40 rounded-[2rem] p-4 border-4 border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center backdrop-blur-md">
-            <h3 className="text-sm font-black mb-4 uppercase tracking-wider text-white border-b border-white/20 pb-2">Level Scores</h3>
+        <div key="level-scores" className="w-full h-full flex flex-col justify-start bg-black/40 rounded-[2rem] p-8 border-4 border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center backdrop-blur-md">
+            <h3 className="text-xl font-black mb-8 uppercase tracking-wider text-white border-b border-white/20 pb-4">Level Scores</h3>
 
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-10">
                 {/* 1. Concurrence */}
                 <div>
-                    <div className="text-3xl font-black text-white leading-none mb-1">
-                        {correctCount}/{totalCount} <span className="text-lg text-gray-400">({concurrencePct}%)</span>
+                    <div className="text-5xl font-black text-white leading-none mb-2">
+                        {correctCount}/{totalCount} <span className="text-2xl text-gray-400">({concurrencePct}%)</span>
                     </div>
-                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">Concurrence</div>
+                    <div className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none">Concurrence</div>
                 </div>
 
                 {/* 2 & 3. Points Row */}
-                <div className="flex flex-row justify-center items-center gap-4 border-t border-b border-white/10 py-2">
+                <div className="flex flex-row justify-center items-center gap-6 border-t border-b border-white/10 py-6">
                     {/* Poll Pts */}
                     <div>
-                        <div className="text-xl font-black text-yellow-300 leading-none mb-1">
+                        <div className="text-3xl font-black text-yellow-300 leading-none mb-2">
                             +{pollPoints} Pts
                         </div>
-                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">Poll Pts</div>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none">Poll Pts</div>
                     </div>
 
                     {/* Bonus Pts */}
                     {bonusNum > 0 && (
-                        <div className="pl-4 border-l border-white/10">
-                            <div className="text-xl font-black text-yellow-300 leading-none mb-1">
+                        <div className="pl-6 border-l border-white/10">
+                            <div className="text-3xl font-black text-yellow-300 leading-none mb-2">
                                 +{bonusNum} Pts
                             </div>
-                            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">Bonus Pts</div>
+                            <div className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none">Bonus Pts</div>
                         </div>
                     )}
                 </div>
 
                 {/* 4. AQ & DQ Row */}
-                <div className="flex flex-row justify-center items-center gap-4">
+                <div className="flex flex-col gap-8">
                     {/* AQ (Green) */}
                     <div>
-                        <div className="text-3xl font-black text-green-400 leading-none mb-1">
+                        <div className="text-6xl font-black text-green-400 leading-none mb-2">
                             {awarenessQuotient}
                         </div>
-                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">AQ</div>
+                        <div className="text-sm font-bold text-gray-400 uppercase tracking-widest leading-none">Awareness Quotient</div>
                     </div>
 
                     {/* DQ (Red) */}
-                    <div className="pl-4 border-l border-white/10">
-                        <div className="text-3xl font-black text-red-400 leading-none mb-1">
+                    <div>
+                        <div className="text-6xl font-black text-red-400 leading-none mb-2">
                             {dqNum.toFixed(2)}
                         </div>
-                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">DQ (Level)</div>
+                        <div className="text-sm font-bold text-gray-400 uppercase tracking-widest leading-none">Deviance Quotient</div>
                     </div>
                 </div>
             </div>
@@ -322,136 +320,93 @@ export default async function LevelUpPage({
     const pathConfig = config?.path_selector_config || {};
 
     const MainContent = (
-        <div className="relative z-10 text-center max-w-4xl w-full animate-in zoom-in duration-500 mx-auto">
-            <div className="flex justify-center mb-6">
-                <div className={`${coinColorClass} p-6 rounded-full ${coinShadowClass} animate-bounce`}>
-                    <Coins size={64} className="opacity-80" />
+        <div className="relative z-10 w-full animate-in zoom-in duration-500">
+            {/* TOP ROW: 1/3 and 2/3 Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto items-stretch mb-8">
+
+                {/* 1/3 Left - Level Scores */}
+                <div className="md:col-span-1 flex flex-col items-stretch">
+                    {LeftContent || LevelScoresContent}
                 </div>
-            </div>
 
-            <h1 className="text-5xl font-black mb-2 tracking-tighter">YOU LEVELED UP!</h1>
-            <p className="text-xl text-gray-400 font-bold mb-8 uppercase tracking-wide">
-                Stage {stageName} • Level {levelLetter} Complete
-            </p>
-
-            {/* Main Level Instructions */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 mb-8 flex flex-col items-center max-w-xl mx-auto">
-                <div
-                    className="text-lg font-medium leading-relaxed mb-0 w-full text-left"
-                    dangerouslySetInnerHTML={{ __html: formatHtmlForDisplay(instructionsText) }}
-                />
-            </div>
-
-            {/* Awareness Assessment Section (New) */}
-            {(dynamicMessage || config?.awareness_assessment) && (
-                <div className="w-full max-w-4xl mx-auto mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <div className="bg-purple-900/40 backdrop-blur-md rounded-3xl p-8 border-2 border-purple-500/30 text-left relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl uppercase tracking-widest">
-                            Awareness Assessment
+                {/* 2/3 Right - You Leveled Up / Instructions */}
+                <div className="md:col-span-2 flex flex-col items-center justify-center gap-6 bg-black/40 rounded-[2rem] p-8 border-4 border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] backdrop-blur-md">
+                    <div className="flex justify-center mb-2">
+                        <div className={`${coinColorClass} p-6 rounded-full ${coinShadowClass} animate-bounce`}>
+                            <Coins size={64} className="opacity-80" />
                         </div>
+                    </div>
+
+                    <h1 className="text-5xl lg:text-7xl font-black mb-0 tracking-tighter text-center">YOU LEVELED UP!</h1>
+                    <p className="text-xl lg:text-3xl text-gray-400 font-bold mb-4 uppercase tracking-wide text-center">
+                        Stage {stageName} • Level {levelLetter} Complete
+                    </p>
+
+                    {/* Score Tier Content OR Instructions */}
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 w-full text-left">
                         <div
-                            className="text-xl text-purple-100 font-medium leading-relaxed"
-                            dangerouslySetInnerHTML={{
-                                // Prefer the Tier-based message (dynamicMessage) if available, otherwise fallback to generic assessment
-                                __html: formatHtmlForDisplay(dynamicMessage || replaceMessageVariables(config.awareness_assessment || "", {
-                                    dq: overallDq,
-                                    aq: awarenessQuotient,
-                                    pointTotal: rawScore,
-                                    lastDq,
-                                    lastScore
-                                }))
-                            }}
+                            className="text-lg lg:text-xl font-medium leading-relaxed mb-0 w-full"
+                            dangerouslySetInnerHTML={{ __html: formatHtmlForDisplay(matchedTierMessage || instructionsText) }}
                         />
                     </div>
                 </div>
-            )}
+            </div>
 
-            {showPathSelector ? (
-                <div className="w-full max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {/* BOTTOM ROW: Path Selector & Izzy */}
+            <div className="flex flex-col md:flex-row items-center md:items-stretch gap-8 max-w-7xl mx-auto w-full bg-black/40 rounded-[2rem] p-8 border-4 border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] backdrop-blur-md">
 
-                    {/* Path Selector Instructions */}
-                    {pathConfig.instructions && (
-                        <div className="bg-[#cceeff] rounded-2xl p-6 mb-8 max-w-xl mx-auto shadow-lg border-2 border-[#4169E1]">
-                            <p className="text-lg text-black font-medium leading-relaxed">
-                                {pathConfig.instructions}
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                        {/* Path 1 */}
-                        <Link
-                            href={pathConfig.path1?.url || "#"}
-                            className="group relative bg-black/40 hover:bg-white hover:text-black border-2 border-white/20 hover:border-white p-8 rounded-3xl transition-all duration-300 flex flex-col items-center justify-center gap-4 text-center min-h-[200px]"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/0 opacity-0 group-hover:opacity-10 rounded-3xl transition-opacity"></div>
-                            <span className="text-sm font-bold uppercase tracking-widest opacity-70 group-hover:opacity-100">Option 1</span>
-                            <span className="text-3xl font-black leading-tight">{pathConfig.path1?.label || "Path 1"}</span>
-                        </Link>
-
-                        {/* Path 2 */}
-                        <Link
-                            href={pathConfig.path2?.url || "#"}
-                            className="group relative bg-black/40 hover:bg-yellow-400 hover:text-black border-2 border-white/20 hover:border-white p-8 rounded-3xl transition-all duration-300 flex flex-col items-center justify-center gap-4 text-center min-h-[200px]"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 to-orange-500/0 opacity-0 group-hover:opacity-10 rounded-3xl transition-opacity"></div>
-                            <span className="text-sm font-bold uppercase tracking-widest opacity-70 group-hover:opacity-100">Option 2</span>
-                            <span className="text-3xl font-black leading-tight">{pathConfig.path2?.label || "Path 2"}</span>
-                        </Link>
-                    </div>
+                {/* Izzy Area */}
+                <div className="hidden md:flex flex-col justify-end items-center md:w-1/3">
+                    <img src="/images/izzy/izzy_6_640x960.png" alt="Izzy" className="object-contain max-h-[400px] w-auto h-auto drop-shadow-2xl" />
                 </div>
-            ) : (
-                <Link
-                    href="/poll"
-                    className="block w-full max-w-xl mx-auto bg-white text-black py-4 rounded-full text-xl font-black hover:scale-105 hover:bg-yellow-400 transition-all shadow-xl"
-                >
-                    CONTINUE
-                </Link>
-            )}
+
+                {/* Path Selector / Continue Area */}
+                <div className="flex-1 flex flex-col h-full items-center justify-center text-center">
+                    {showPathSelector ? (
+                        <div className="w-full max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+                            {/* Path Selector Instructions */}
+                            {pathConfig.instructions && (
+                                <div className="bg-[#cceeff] rounded-2xl p-6 mb-8 w-full shadow-lg border-2 border-[#4169E1]">
+                                    <p className="text-lg text-black font-medium leading-relaxed">
+                                        {pathConfig.instructions}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                                <Link href={pathConfig.path1?.url || "#"} className="group relative bg-black/40 hover:bg-white hover:text-black border-2 border-white/20 hover:border-white p-6 rounded-3xl transition-all duration-300 flex flex-col items-center justify-center gap-2 text-center min-h-[160px]">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/0 opacity-0 group-hover:opacity-10 rounded-3xl transition-opacity"></div>
+                                    <span className="text-xs font-bold uppercase tracking-widest opacity-70 group-hover:opacity-100">Option 1</span>
+                                    <span className="text-2xl font-black leading-tight">{pathConfig.path1?.label || "Path 1"}</span>
+                                </Link>
+                                <Link href={pathConfig.path2?.url || "#"} className="group relative bg-black/40 hover:bg-yellow-400 hover:text-black border-2 border-white/20 hover:border-white p-6 rounded-3xl transition-all duration-300 flex flex-col items-center justify-center gap-2 text-center min-h-[160px]">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 to-orange-500/0 opacity-0 group-hover:opacity-10 rounded-3xl transition-opacity"></div>
+                                    <span className="text-xs font-bold uppercase tracking-widest opacity-70 group-hover:opacity-100">Option 2</span>
+                                    <span className="text-2xl font-black leading-tight">{pathConfig.path2?.label || "Path 2"}</span>
+                                </Link>
+                            </div>
+                        </div>
+                    ) : (
+                        <Link
+                            href="/poll"
+                            className="block w-full max-w-xl mx-auto bg-white text-black py-4 rounded-full text-2xl font-black hover:scale-105 hover:bg-yellow-400 transition-all shadow-xl"
+                        >
+                            CONTINUE
+                        </Link>
+                    )}
+                </div>
+            </div>
         </div>
     );
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-6 relative overflow-hidden">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-6 relative overflow-x-hidden">
+            {/* Background Effects */}
+            <div className="absolute inset-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800 to-black z-0 opacity-50"></div>
 
-            {/* Background Effects (Subtle Gradients) */}
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800 to-black z-0 opacity-50"></div>
-
-            {/* Conditional Layout: Rails or Just Content */}
-            {showLayout ? (
-                <div className="w-full h-full flex items-center justify-center">
-                    <IsItRails
-                        items={railItems}
-                        topLeftContent={LeftContent}
-                        topRightContent={RightContent}
-                        hideRails={!showSideRails}
-                    >
-                        {MainContent}
-                    </IsItRails>
-                </div>
-            ) : (
-                <div className="relative z-10 w-full">
-                    {/* If no rails, we might want to show metrics in center? 
-                         But user instructions imply this layout is specific to the Rails view.
-                         Let's keep MainContent as is. If metrics are vital they should go back in, 
-                         but for now let's assume Rails View is the primary view for Level Up. 
-                     */}
-                    {MainContent}
-                    {/* Fallback for metrics if no Rails? */}
-                    {modules.includes('your_metrics') && (
-                        <div className="max-w-md mx-auto mt-8">
-                            {/* Render horizontally if standalone? */}
-                            <div className="bg-white/10 rounded-xl p-4 text-center">
-                                <h3 className="uppercase font-bold mb-2 text-sm">Your Metrics</h3>
-                                <div className="flex justify-around">
-                                    <div><span className="text-2xl font-black text-yellow-400">{awarenessQuotient}</span> <span className="text-xs text-gray-400 block">AQ</span></div>
-                                    <div><span className={`text-2xl font-black ${dqNum < 0.2 ? "text-green-400" : "text-red-400"}`}>{dqNum.toFixed(2)}</span> <span className="text-xs text-gray-400 block">DQ</span></div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+            <div className="relative z-10 w-full">
+                {MainContent}
+            </div>
         </div>
     );
 }

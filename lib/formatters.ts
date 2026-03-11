@@ -7,6 +7,16 @@ export const STAGE_NAMES = [
 
 export const LEVEL_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
+// Using a constant list for reliable syncing across editors.
+export const AVAILABLE_IZZY_IMAGES = [
+    'izzy_1_640x960.png', 'izzy_2_640x960.png', 'izzy_3_640x960.png',
+    'izzy_4_640x960.png', 'izzy_5_640x960.png', 'izzy_6_640x960.png',
+    'izzy_7_640x960.png', 'izzy_8_640x960.png', 'izzy_9_640x960.png',
+    'izzy_10_640x960.png', 'izzy_11_640x960.png', 'izzy_12_640x960.png',
+    'izzy_13_640x960.png', 'izzy_14_640x960.png', 'izzy_15_640x960.png',
+    'izzy_16_640x960.png'
+];
+
 export function formatStage(n: number): string {
     if (n < 1 || n > 20) return n.toString();
     return STAGE_NAMES[n - 1] || n.toString();

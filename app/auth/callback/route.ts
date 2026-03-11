@@ -148,8 +148,8 @@ export async function GET(request: Request) {
                 .eq('id', userId)
                 .single();
 
-            // If user is stuck in Stage 0 but has points, advance them to Stage 1 Level 1
-            if (userProfile && userProfile.current_stage === 0 && userProfile.score > 0) {
+            // If user is stuck in Stage 0, advance them to Stage 1 Level 1 upon registration/login
+            if (userProfile && userProfile.current_stage === 0) {
                 await serviceClient
                     .from('user_profiles')
                     .update({ current_stage: 1, current_level: 1 })

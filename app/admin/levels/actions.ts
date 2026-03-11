@@ -25,6 +25,8 @@ export async function saveLevelConfig(stage: number, level: number, formData: Fo
     };
 
     const instructions = cleanHtml(formData.get("instructions") as string);
+    const intro_content = cleanHtml(formData.get("intro_content") as string);
+    const izzy_intro_image = formData.get("izzy_intro_image") as string;
     const awareness_assessment = cleanHtml(formData.get("awareness_assessment") as string);
 
     // Build score_tiers — 5 tiers, looked up by letter
@@ -58,6 +60,8 @@ export async function saveLevelConfig(stage: number, level: number, formData: Fo
                 stage,
                 level,
                 instructions,
+                intro_content,
+                izzy_intro_image,
                 awareness_assessment,
                 is_linked,
                 show_interstitial,
@@ -74,6 +78,51 @@ export async function saveLevelConfig(stage: number, level: number, formData: Fo
 
         revalidatePath(`/admin/levels/${stage}/${level}`);
         revalidatePath(`/levelup`);
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function bulkUpdateLevelModules(updates: { stage: number, level: number, enabled_modules: string[] }[]) {
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { cookies: { getAll() { return [] }, setAll() { } } }
+    );
+
+    try {
+        for (const update of updates) {
+            const { data: existing } = await supabase
+                .from('level_configurations')
+                .select('stage, level')
+                .eq('stage', update.stage)
+                .eq('level', update.level)
+                .maybeSingle();
+
+            if (existing) {
+                const { error } = await supabase
+                    .from('level_configurations')
+                    .update({ enabled_modules: update.enabled_modules, updated_at: new Date().toISOString() })
+                    .eq('stage', existing.stage)
+                    .eq('level', existing.level);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('level_configurations')
+                    .insert({
+                        stage: update.stage,
+                        level: update.level,
+                        enabled_modules: update.enabled_modules,
+                        instructions: "Complete this level.",
+                        path_selector_config: {}
+                    });
+                if (error) throw error;
+            }
+        }
+
+        revalidatePath('/admin/levels');
+        revalidatePath('/levelup');
         return { success: true };
     } catch (e: any) {
         return { success: false, error: e.message };

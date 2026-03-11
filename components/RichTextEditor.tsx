@@ -95,10 +95,7 @@ export default function RichTextEditor({
         },
         onUpdate({ editor }) {
             const html = editor.getHTML();
-            // Normalise &nbsp; to regular spaces to stay consistent with
-            // what the old Quill editor produced
-            const clean = html.replace(/&nbsp;/g, " ").replace(/&amp;nbsp;/g, " ");
-            onChange(clean);
+            onChange(html);
         },
     });
 

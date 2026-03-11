@@ -2,8 +2,6 @@
 
 import { createClient } from "@/lib/supabaseClient";
 import { submitLead } from "@/app/(main)/poll/actions";
-import 'react-quill-new/dist/quill.snow.css';
-import 'quill-table-ui/dist/index.css';
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { STAGE_NAMES, LEVEL_LETTERS, formatHtmlForDisplay } from "@/lib/formatters"; // Assuming these exist, else use raw

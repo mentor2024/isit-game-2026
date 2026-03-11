@@ -152,7 +152,7 @@ function ConsensusResult({
 function IzzyDialogue({ image, quote }: { image: string, quote: string }) {
     return (
         <div className="fixed right-[calc(50%-600px)] top-11/18 -translate-y-1/2 z-50 flex flex-col items-center w-52 pointer-events-none select-none animate-in slide-in-from-right-4 fade-in duration-500">
- 
+
             {/* Word bubble */}
             <div className="relative bg-white border-4 border-purple-500 rounded-3xl px-4 py-3 shadow-xl w-full">
                 <div
@@ -308,6 +308,10 @@ export default function VotingInterface({
             }
 
             setMessage("");
+
+            // Reset state in case we are in Preview Mode and the component doesn't unmount
+            handleReset();
+
             router.refresh();
 
         } catch (e: any) {

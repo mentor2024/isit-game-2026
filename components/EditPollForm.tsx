@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updatePoll } from "@/app/admin/poll-actions";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES, LEVEL_LETTERS, AVAILABLE_IZZY_IMAGES } from "@/lib/formatters";
 import RichTextEditor from "@/components/RichTextEditor";
 import VariableCheatSheet from "@/components/VariableCheatSheet";
 import VariableActionLabel from "@/components/VariableActionLabel";
@@ -117,7 +117,7 @@ export default function EditPollForm({
                     <input name="title" defaultValue={poll.title} required className="border-2 border-black p-3 rounded-xl" />
                 </div>
 
-{/* Show Definitions Toggle — ISIT Text and ISIT Text Plus only */}
+                {/* Show Definitions Toggle — ISIT Text and ISIT Text Plus only */}
                 {(poll.type === 'isit_text' || poll.type === 'isit_text_plus') && (
                     <div className="flex items-center gap-3">
                         <input type="hidden" name="show_definitions" value={showDefinitions ? "true" : "false"} />
@@ -133,7 +133,7 @@ export default function EditPollForm({
                         </label>
                     </div>
                 )}
-                
+
                 <div className="flex flex-col gap-2">
                     <input type="hidden" name="instructions" value={instructions} />
                     <RichTextEditor
@@ -145,7 +145,7 @@ export default function EditPollForm({
                     />
                 </div>
 
-                {poll.type !== 'quad_sorting' && poll.type !== 'multiple_choice' && poll.type !== 'isit_text_plus' && (
+                {poll.type !== 'quad_sorting' && poll.type !== 'multiple_choice' && poll.type !== 'isit_text_plus' && poll.type !== 'likert_5' && poll.type !== 'likert_10' && poll.type !== 'word_cloud' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex flex-col gap-2">
                             <VariableActionLabel label="Correct Answer Feedback" value={instructionsCorrect} onUpdate={setInstructionsCorrect} className="text-green-700" />
@@ -259,6 +259,7 @@ export default function EditPollForm({
                                 let objectCount = 2;
                                 if (poll.type === 'quad_sorting') objectCount = 4;
                                 if (poll.type === 'multiple_choice') objectCount = objects.length > 0 ? objects.length : 4;
+                                if (poll.type === 'likert_5' || poll.type === 'likert_10' || poll.type === 'word_cloud') objectCount = 1;
 
                                 const slots = Array.from({ length: objectCount }, (_, i) => i + 1);
 
@@ -336,7 +337,7 @@ export default function EditPollForm({
                                                     className="border-2 border-black p-2 rounded-lg"
                                                 />
 
-                                                {poll.type !== 'quad_sorting' && (
+                                                {poll.type !== 'quad_sorting' && poll.type !== 'word_cloud' && (
                                                     <FeedbackEditor
                                                         name={`obj${num}_feedback`}
                                                         defaultValue={obj?.feedback || ""}
@@ -348,7 +349,7 @@ export default function EditPollForm({
                                                 {poll.type === 'multiple_choice' ? (
                                                     null // Handled above
                                                 ) : (
-                                                    poll.type !== 'quad_sorting' && poll.type !== 'isit_text_plus' && (
+                                                    poll.type !== 'quad_sorting' && poll.type !== 'isit_text_plus' && poll.type !== 'likert_5' && poll.type !== 'likert_10' && poll.type !== 'word_cloud' && (
                                                         <div className="flex gap-4 mt-2">
                                                             <label className="flex items-center gap-2 cursor-pointer">
                                                                 <input type="radio" name={`obj${num}_side`} value="IS" defaultChecked={obj?.correct_side === 'IS'} required className="accent-black w-5 h-5" />
@@ -614,7 +615,7 @@ export default function EditPollForm({
                             </div>
                             <div className="p-6 overflow-y-auto flex-1 bg-gray-100">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                    {['izzy_1_640x960.png', 'izzy_2_640x960.png', 'izzy_3_640x960.png', 'izzy_4_640x960.png', 'izzy_6_640x960.png', 'izzy_7_640x960.png', 'izzy_8_640x960.png', 'izzy_9_640x960.png', 'izzy_11_640x960.png', 'izzy_12_640x960.png', 'izzy_14_640x960.png'].map((img) => (
+                                    {AVAILABLE_IZZY_IMAGES.map((img) => (
                                         <button
                                             key={img}
                                             type="button"
@@ -622,7 +623,7 @@ export default function EditPollForm({
                                                 setIzzyImage(img);
                                                 setShowIzzyModal(false);
                                             }}
-                                            className={`bg-white rounded-xl p-2 border-4 transition-all hover:scale-105 shadow-sm hover:shadow-md h-40 flex items-center justify-center ${izzyImage === img ? 'border-purple-500 bg-purple-50' : 'border-transparent'}`}
+                                            className={`bg-white rounded-xl p-0 overflow-hidden border-4 transition-all hover:scale-105 shadow-sm hover:shadow-md h-32 flex items-center justify-center ${izzyImage === img ? 'border-purple-500 bg-purple-50' : 'border-transparent'}`}
                                         >
                                             <img src={`/images/izzy/${img}`} alt={img} className="max-h-full object-contain drop-shadow-md" />
                                         </button>

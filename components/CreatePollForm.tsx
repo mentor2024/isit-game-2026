@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { createPoll } from "@/app/admin/poll-actions";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES, LEVEL_LETTERS, AVAILABLE_IZZY_IMAGES } from "@/lib/formatters";
+import dynamic from 'next/dynamic';
 import RichTextEditor from "@/components/RichTextEditor";
 
 export default function CreatePollForm({
@@ -183,6 +184,9 @@ export default function CreatePollForm({
                                 <option value="quad_sorting">Quad Sorting</option>
                                 <option value="multiple_choice">Multi-choice (points)</option>
                                 <option value="isit_text_plus">ISIT Text Plus (Consensus)</option>
+                                <option value="likert_5">5-Point Likert Scale</option>
+                                <option value="likert_10">10-Point Likert Scale</option>
+                                <option value="word_cloud">Word Cloud</option>
                             </select>
                         </div>
                         <div className="flex flex-col gap-2">
@@ -218,7 +222,7 @@ export default function CreatePollForm({
                         />
                     </div>
 
-                    {pollType !== 'quad_sorting' && pollType !== 'multiple_choice' && pollType !== 'isit_text_plus' && (
+                    {pollType !== 'quad_sorting' && pollType !== 'multiple_choice' && pollType !== 'isit_text_plus' && pollType !== 'likert_5' && pollType !== 'likert_10' && pollType !== 'word_cloud' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex flex-col gap-2">
                                 <label className="font-bold text-green-700">Correct Answer Feedback</label>
@@ -245,14 +249,14 @@ export default function CreatePollForm({
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold mb-2">Left / IS - Majority</label>
-                                <div className="bg-white border-2 border-green-500 rounded-xl overflow-hidden [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b-2 [&_.ql-toolbar]:border-gray-200 [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[100px] shadow-sm">
+                                <div className="bg-white border-2 border-green-500 rounded-xl overflow-hidden shadow-sm">
                                     <RichTextEditor value={consensus1Majority} onChange={setConsensus1Majority} />
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">If the players votes Obj 1, and the crowd agrees with them.</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold mb-2">Left / IS - Minority</label>
-                                <div className="bg-white border-2 border-red-500 rounded-xl overflow-hidden [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b-2 [&_.ql-toolbar]:border-gray-200 [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[100px] shadow-sm">
+                                <div className="bg-white border-2 border-red-500 rounded-xl overflow-hidden shadow-sm">
                                     <RichTextEditor value={consensus1Minority} onChange={setConsensus1Minority} />
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">If the players votes Obj 1, but the crowd disagrees.</p>
@@ -260,14 +264,14 @@ export default function CreatePollForm({
                             <div className="border-t-2 border-gray-100 my-4"></div>
                             <div>
                                 <label className="block text-sm font-bold mb-2">Right / IT - Majority</label>
-                                <div className="bg-white border-2 border-green-500 rounded-xl overflow-hidden [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b-2 [&_.ql-toolbar]:border-gray-200 [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[100px] shadow-sm">
+                                <div className="bg-white border-2 border-green-500 rounded-xl overflow-hidden shadow-sm">
                                     <RichTextEditor value={consensus2Majority} onChange={setConsensus2Majority} />
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">If the players votes Obj 2, and the crowd agrees with them.</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold mb-2">Right / IT - Minority</label>
-                                <div className="bg-white border-2 border-red-500 rounded-xl overflow-hidden [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b-2 [&_.ql-toolbar]:border-gray-200 [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[100px] shadow-sm">
+                                <div className="bg-white border-2 border-red-500 rounded-xl overflow-hidden shadow-sm">
                                     <RichTextEditor value={consensus2Minority} onChange={setConsensus2Minority} />
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">If the players votes Obj 2, but the crowd disagrees.</p>
@@ -410,11 +414,46 @@ export default function CreatePollForm({
                                                 <input type="file" name="obj1_image" accept="image/*" required className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
                                                 <input name="obj1_text" placeholder="Label / Alt Text" required className="border-2 border-black p-2 rounded-lg" />
                                             </>
+                                        ) : pollType === "likert_5" || pollType === "likert_10" || pollType === "word_cloud" ? (
+                                            <>
+                                                <div className="flex gap-4 mb-4">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input type="radio" name="obj1_media_type" value="text" defaultChecked className="accent-black w-5 h-5 pointer-events-auto" onClick={() => {
+                                                            const el = document.getElementById('likert-media-input') as HTMLInputElement;
+                                                            if (el) { el.style.display = 'none'; el.required = false; }
+                                                        }} />
+                                                        <span className="font-bold">Text Only</span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input type="radio" name="obj1_media_type" value="image" className="accent-black w-5 h-5 pointer-events-auto" onClick={() => {
+                                                            const el = document.getElementById('likert-media-input') as HTMLInputElement;
+                                                            if (el) { el.style.display = 'block'; el.accept = 'image/*'; el.required = true; }
+                                                        }} />
+                                                        <span className="font-bold">Image</span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input type="radio" name="obj1_media_type" value="video" className="accent-black w-5 h-5 pointer-events-auto" onClick={() => {
+                                                            const el = document.getElementById('likert-media-input') as HTMLInputElement;
+                                                            if (el) { el.style.display = 'block'; el.accept = 'video/*'; el.required = true; }
+                                                        }} />
+                                                        <span className="font-bold">Video</span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input type="radio" name="obj1_media_type" value="audio" className="accent-black w-5 h-5 pointer-events-auto" onClick={() => {
+                                                            const el = document.getElementById('likert-media-input') as HTMLInputElement;
+                                                            if (el) { el.style.display = 'block'; el.accept = 'audio/*'; el.required = true; }
+                                                        }} />
+                                                        <span className="font-bold">Audio</span>
+                                                    </label>
+                                                </div>
+                                                <input id="likert-media-input" type="file" name="obj1_image" className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white mb-4" style={{ display: 'none' }} />
+                                                <input name="obj1_text" placeholder="Word or Name of Object" required className="border-2 border-black p-2 rounded-lg w-full" />
+                                            </>
                                         ) : (
                                             <input name="obj1_text" placeholder="Word (e.g. Hotdog)" required className="border-2 border-black p-2 rounded-lg" />
                                         )}
 
-                                        {pollType !== "isit_text_plus" && (
+                                        {pollType !== "isit_text_plus" && pollType !== "likert_5" && pollType !== "likert_10" && pollType !== "word_cloud" && (
                                             <div className="flex gap-4 mt-2">
                                                 <label className="flex items-center gap-2 cursor-pointer">
                                                     <input
@@ -445,49 +484,51 @@ export default function CreatePollForm({
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                                    <h3 className="font-bold mb-3">Object 2 ({pollType === "isit_image" ? "Image" : "Text"})</h3>
+                                {pollType !== 'likert_5' && pollType !== 'likert_10' && pollType !== 'word_cloud' && (
+                                    <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                                        <h3 className="font-bold mb-3">Object 2 ({pollType === "isit_image" ? "Image" : "Text"})</h3>
 
-                                    <div className="space-y-4">
-                                        {pollType === "isit_image" ? (
-                                            <>
-                                                <input type="file" name="obj2_image" accept="image/*" required className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
-                                                <input name="obj2_text" placeholder="Label / Alt Text" required className="border-2 border-black p-2 rounded-lg" />
-                                            </>
-                                        ) : (
-                                            <input name="obj2_text" placeholder="Word (e.g. Sandwich)" required className="border-2 border-black p-2 rounded-lg" />
-                                        )}
+                                        <div className="space-y-4">
+                                            {pollType === "isit_image" ? (
+                                                <>
+                                                    <input type="file" name="obj2_image" accept="image/*" required className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
+                                                    <input name="obj2_text" placeholder="Label / Alt Text" required className="border-2 border-black p-2 rounded-lg" />
+                                                </>
+                                            ) : (
+                                                <input name="obj2_text" placeholder="Word (e.g. Sandwich)" required className="border-2 border-black p-2 rounded-lg" />
+                                            )}
 
-                                        {pollType !== "isit_text_plus" && (
-                                            <div className="flex gap-4 mt-2">
-                                                <label className="flex items-center gap-2 cursor-pointer">
-                                                    <input
-                                                        type="radio"
-                                                        name="obj2_side"
-                                                        value="IS"
-                                                        checked={obj2Side === "IS"}
-                                                        onChange={() => handleSideChange(2, "IS")}
-                                                        required
-                                                        className="accent-black w-5 h-5"
-                                                    />
-                                                    <span className="font-bold">IS</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 cursor-pointer">
-                                                    <input
-                                                        type="radio"
-                                                        name="obj2_side"
-                                                        value="IT"
-                                                        checked={obj2Side === "IT"}
-                                                        onChange={() => handleSideChange(2, "IT")}
-                                                        required
-                                                        className="accent-black w-5 h-5"
-                                                    />
-                                                    <span className="font-bold">IT</span>
-                                                </label>
-                                            </div>
-                                        )}
+                                            {pollType !== "isit_text_plus" && (
+                                                <div className="flex gap-4 mt-2">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="obj2_side"
+                                                            value="IS"
+                                                            checked={obj2Side === "IS"}
+                                                            onChange={() => handleSideChange(2, "IS")}
+                                                            required
+                                                            className="accent-black w-5 h-5"
+                                                        />
+                                                        <span className="font-bold">IS</span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="obj2_side"
+                                                            value="IT"
+                                                            checked={obj2Side === "IT"}
+                                                            onChange={() => handleSideChange(2, "IT")}
+                                                            required
+                                                            className="accent-black w-5 h-5"
+                                                        />
+                                                        <span className="font-bold">IT</span>
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </>
                         )}
                     </div>
@@ -538,7 +579,7 @@ export default function CreatePollForm({
                             <div className="flex-1 flex flex-col gap-2">
                                 <label className="block text-sm font-bold text-purple-900 uppercase">Word Balloon Quote</label>
                                 <input type="hidden" name="izzy_quote" value={izzyQuote} />
-                                <div className="bg-white border-2 border-purple-300 rounded-xl overflow-hidden [&_.ql-toolbar]:border-none [&_.ql-toolbar]:border-b-2 [&_.ql-toolbar]:border-purple-100 [&_.ql-container]:border-none shadow-inner h-full flex flex-col">
+                                <div className="bg-white border-2 border-purple-300 rounded-xl overflow-hidden shadow-inner h-full flex flex-col">
                                     <RichTextEditor
                                         value={izzyQuote}
                                         onChange={setIzzyQuote}
@@ -559,7 +600,7 @@ export default function CreatePollForm({
                                 </div>
                                 <div className="p-6 overflow-y-auto flex-1 bg-gray-100">
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                        {['izzy_1_640x960.png', 'izzy_2_640x960.png', 'izzy_3_640x960.png', 'izzy_4_640x960.png', 'izzy_6_640x960.png', 'izzy_7_640x960.png', 'izzy_8_640x960.png', 'izzy_9_640x960.png', 'izzy_11_640x960.png', 'izzy_12_640x960.png', 'izzy_14_640x960.png'].map((img) => (
+                                        {AVAILABLE_IZZY_IMAGES.map((img) => (
                                             <button
                                                 key={img}
                                                 type="button"
@@ -567,7 +608,7 @@ export default function CreatePollForm({
                                                     setIzzyImage(img);
                                                     setShowIzzyModal(false);
                                                 }}
-                                                className={`bg-white rounded-xl p-2 border-4 transition-all hover:scale-105 shadow-sm hover:shadow-md h-40 flex items-center justify-center ${izzyImage === img ? 'border-purple-500 bg-purple-50' : 'border-transparent'}`}
+                                                className={`bg-white rounded-xl p-0 overflow-hidden border-4 transition-all hover:scale-105 shadow-sm hover:shadow-md h-32 flex items-center justify-center ${izzyImage === img ? 'border-purple-500 bg-purple-50' : 'border-transparent'}`}
                                             >
                                                 <img src={`/images/izzy/${img}`} alt={img} className="max-h-full object-contain drop-shadow-md" />
                                             </button>
@@ -585,7 +626,7 @@ export default function CreatePollForm({
                         {loading ? "Creating..." : "Create Poll"}
                     </button>
                 </form>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

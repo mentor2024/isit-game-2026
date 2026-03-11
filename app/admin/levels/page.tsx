@@ -92,7 +92,15 @@ export default async function AdminLevelsPage({
                     <h1 className="text-4xl font-black">Levels</h1>
                     <p className="text-gray-500 mt-2">Manage level configurations and interstitials.</p>
                 </div>
-                <CreateLevelButton />
+                <div className="flex gap-4">
+                    <Link
+                        href="/admin/levels/bulk"
+                        className="bg-black text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition shadow-sm border-2 border-transparent hover:border-gray-400"
+                    >
+                        Bulk Edit Modules
+                    </Link>
+                    <CreateLevelButton />
+                </div>
             </header>
 
             <LevelFilters />

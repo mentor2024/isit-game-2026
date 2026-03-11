@@ -208,6 +208,8 @@ export default function QuadGroupingInterface({ pollId, objects }: QuadGroupingI
                     window.location.href = `/levelup?stage=${result.stage}&level=${result.level}&bonus=${result.bonus || 0}&dq=${result.dq || 0}&correct=${result.correctPolls || 0}&total=${result.totalPolls || 0}&points=${result.points || 0}`;
                 }
             } else {
+                setMessage("");
+                handleReset();
                 router.refresh();
             }
 
