@@ -775,7 +775,7 @@ function ConfigPanel({
             );
 
         case "conditional_content":
-            return <ConditionalContentPanel cfg={cfg} update={update} inputCls={inputCls} labelCls={labelCls} />;
+            return <ConditionalContentPanel cfg={cfg} update={update} />;
 
         case "scoring_groups":
             return (
