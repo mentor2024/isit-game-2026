@@ -1297,7 +1297,7 @@ export default function LayoutBuilder({ value, onChange, onSavePage, isSavingPag
 
         const { rowIndex: targetRow, colIndex: targetCol } = parseSlotId(targetData.slotId);
         const draggedModuleId: string = sourceData?.moduleId;
-        if (!draggedModuleId) return;
+        if (!draggedModuleId || !sourceData) return;
 
         if (sourceData.type === "palette") {
             const isCustomDrop = draggedModuleId.startsWith(CUSTOM_MODULE_PREFIX);
