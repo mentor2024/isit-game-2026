@@ -278,8 +278,8 @@ export default async function LevelUpPage({
             case 'conditional_content': {
                 const cfg = col_content ? (() => { try { return JSON.parse(col_content); } catch { return {}; } })() : {};
                 const criteria: string = cfg.criteria || 'scoring_group';
-                const branches: { condition: string; label: string; content: string }[] = cfg.branches || [];
-
+                const branches: { condition: string; operator?: string; label: string; content: string }[] = cfg.branches || [];
+                
                 // ── Resolve the current value for this criteria ──────────────
                 let resolvedValue: string = '';
 
