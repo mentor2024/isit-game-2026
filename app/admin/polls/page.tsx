@@ -77,7 +77,7 @@ export default async function AdminPollsPage({
     const currentParams = { stage, level, poll_order, type, search };
 
     return (
-        <div className="max-w-6xl mx-auto p-8">
+        <div className="px-6 py-8">
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-4xl font-black">Polls</h1>
                 <div className="flex gap-3">

@@ -130,7 +130,7 @@ export default async function AdminUsersPage({
     if (error) return <div>Error loading users: {error.message}</div>;
 
     return (
-        <div className="max-w-6xl mx-auto p-8">
+        <div className="px-6 py-8">
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-4xl font-black">Users</h1>
                 <Link href="/admin/users/new" className="bg-black text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform">

@@ -10,7 +10,7 @@ import WordCloudInterface from "@/components/WordCloudInterface";
 import LevelCompleteScreen from "@/components/LevelCompleteScreen";
 import LevelIntroScreen from "@/components/LevelIntroScreen";
 import { ChevronRight, MoveRight } from "lucide-react";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES } from "@/lib/formatters";
 import { advanceLevel } from "@/app/(main)/poll/actions";
 import { getUserMetrics } from "@/lib/metrics";
 import { replaceMessageVariables } from "@/lib/messageUtils";
@@ -764,7 +764,7 @@ export default async function PollPage({
             <div className="w-full max-w-xl flex items-center gap-2 text-sm font-bold text-black justify-center">
                 <span>{activePoll.stage === 0 ? "Stage Zero" : `Stage ${STAGE_NAMES[activePoll.stage - 1]}`}</span>
                 <ChevronRight size={14} />
-                <span>Level {LEVEL_LETTERS[activePoll.level - 1]}</span>
+                <span>Level {activePoll.level}</span>
                 <ChevronRight size={14} />
                 <span>Poll {activePoll.poll_order}</span>
             </div>

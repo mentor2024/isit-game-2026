@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { updatePoll } from "@/app/admin/poll-actions";
-import { STAGE_NAMES, LEVEL_LETTERS, AVAILABLE_IZZY_IMAGES } from "@/lib/formatters";
+import { STAGE_NAMES } from "@/lib/formatters";
+import AssetPickerModal from "@/components/AssetPickerModal";
+import PollImagePicker from "@/components/PollImagePicker";
 import RichTextEditor from "@/components/RichTextEditor";
-import VariableCheatSheet from "@/components/VariableCheatSheet";
 import VariableActionLabel from "@/components/VariableActionLabel";
 import Link from "next/link";
 
@@ -107,7 +108,6 @@ export default function EditPollForm({
                 </div>
             )}
 
-            <VariableCheatSheet />
 
             <form action={handleSubmit} className="flex flex-col gap-6">
                 <input type="hidden" name="pollId" value={poll.id} />
@@ -230,8 +230,8 @@ export default function EditPollForm({
                     <div className="flex flex-col gap-2">
                         <label className="font-bold">Level</label>
                         <select name="level" defaultValue={poll.level || 1} required className="border-2 border-black p-3 rounded-xl bg-white">
-                            {LEVEL_LETTERS.map((char, i) => (
-                                <option key={i} value={i + 1}>{char}</option>
+                            {Array.from({length: 10}, (_, i) => i + 1).map((num) => (
+                                <option key={num} value={num}>{num}</option>
                             ))}
                         </select>
                     </div>
@@ -319,14 +319,10 @@ export default function EditPollForm({
                                             <h3 className="font-bold mb-3">Object {num}</h3>
                                             <div className="flex flex-col gap-3">
                                                 {(poll.type === "isit_image" || poll.type === "quad_sorting") && (
-                                                    <>
-                                                        {obj?.image_url && (
-                                                            <div className="w-20 h-20 rounded-md overflow-hidden bg-gray-200 border border-gray-300">
-                                                                <img src={obj.image_url} className="w-full h-full object-cover" />
-                                                            </div>
-                                                        )}
-                                                        <input type="file" name={`obj${num}_image`} accept="image/*" className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
-                                                    </>
+                                                    <PollImagePicker
+                                                        name={`obj${num}_image`}
+                                                        currentUrl={obj?.image_url ?? undefined}
+                                                    />
                                                 )}
 
                                                 <input
@@ -519,7 +515,7 @@ export default function EditPollForm({
 
                             {izzyImage ? (
                                 <div className="relative w-full h-48 bg-white rounded-xl border-2 border-purple-300 p-2 overflow-hidden flex items-center justify-center">
-                                    <img src={`/images/izzy/${izzyImage}`} alt="Izzy Selected" className="max-h-full object-contain" />
+                                    <img src={izzyImage.startsWith("http") || izzyImage.startsWith("/images") ? izzyImage : `/images/izzy/${izzyImage}`} alt="Izzy Selected" className="max-h-full object-contain" />
                                     <button
                                         type="button"
                                         onClick={() => setIzzyImage("")}
@@ -607,31 +603,12 @@ export default function EditPollForm({
                 </div>
 
                 {showIzzyModal && (
-                    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden">
-                            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                                <h3 className="font-black text-xl">Select Izzy Thumbnail</h3>
-                                <button type="button" onClick={() => setShowIzzyModal(false)} className="text-gray-500 hover:text-black font-bold p-2">Close</button>
-                            </div>
-                            <div className="p-6 overflow-y-auto flex-1 bg-gray-100">
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                    {AVAILABLE_IZZY_IMAGES.map((img) => (
-                                        <button
-                                            key={img}
-                                            type="button"
-                                            onClick={() => {
-                                                setIzzyImage(img);
-                                                setShowIzzyModal(false);
-                                            }}
-                                            className={`bg-white rounded-xl p-0 overflow-hidden border-4 transition-all hover:scale-105 shadow-sm hover:shadow-md h-32 flex items-center justify-center ${izzyImage === img ? 'border-purple-500 bg-purple-50' : 'border-transparent'}`}
-                                        >
-                                            <img src={`/images/izzy/${img}`} alt={img} className="max-h-full object-contain drop-shadow-md" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <AssetPickerModal
+                        typeFilter="image"
+                        defaultTag="izzy"
+                        onSelect={url => { setIzzyImage(url); setShowIzzyModal(false); }}
+                        onClose={() => setShowIzzyModal(false)}
+                    />
                 )}
 
                 <div className="flex gap-4 mt-8 pt-8 border-t border-gray-100">

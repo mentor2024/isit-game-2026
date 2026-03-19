@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, ListFilter, Layers, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Users, ListFilter, Layers, ArrowLeft, Archive, Map, Trophy } from "lucide-react";
 
 export function AdminNavBar() {
     const pathname = usePathname();
@@ -11,11 +11,14 @@ export function AdminNavBar() {
         { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
         { href: "/admin/polls", label: "Polls", icon: ListFilter },
         { href: "/admin/levels", label: "Levels", icon: Layers },
+        { href: "/admin/stages", label: "Stages", icon: Trophy },
         { href: "/admin/users", label: "Users", icon: Users },
+        { href: "/admin/repository", label: "Repository", icon: Archive },
+        { href: "/admin/map", label: "Map", icon: Map },
     ];
 
     return (
-        <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <nav className="bg-white border-b border-gray-200 px-8 py-3 flex items-center justify-between sticky top-0 z-50">
             <div className="flex items-center gap-8">
                 <Link href="/" className="font-black text-xl tracking-tight hover:scale-105 transition-transform flex items-center gap-2">
                     <ArrowLeft className="w-5 h-5" />

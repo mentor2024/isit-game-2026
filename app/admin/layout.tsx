@@ -39,7 +39,8 @@ export default async function AdminLayout({
     return (
         <>
             <AdminNavBar />
-            <div className="pt-20 bg-gray-50 min-h-screen">
+            {/* Main content — padded right to clear the sidebar */}
+            <div className="pt-16 bg-gray-50 min-h-screen">
                 {children}
             </div>
         </>

@@ -53,7 +53,7 @@ function VocabularyCard({ title, badgeText, badgeColor, summary, expandedContent
 
 export default function VocabularyPage() {
     return (
-        <div className="p-8 max-w-4xl mx-auto">
+        <div className="px-6 py-8">
             <Link
                 href="/admin/documentation"
                 className="inline-flex items-center text-sm font-bold text-gray-500 hover:text-black mb-6 transition-colors"

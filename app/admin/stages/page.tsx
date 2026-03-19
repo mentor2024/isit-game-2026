@@ -31,7 +31,7 @@ export default async function AdminStagesPage() {
     if (distinctStages.length === 0) distinctStages.push(1);
 
     return (
-        <div className="max-w-6xl mx-auto p-8">
+        <div className="px-6 py-8">
             <header className="mb-8 flex justify-between items-center">
                 <div>
                     <h1 className="text-4xl font-black">Stages</h1>

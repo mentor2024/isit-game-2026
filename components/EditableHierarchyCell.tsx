@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { updatePollHierarchyField } from "@/app/admin/poll-actions";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES } from "@/lib/formatters";
 
 interface EditableHierarchyCellProps {
     pollId: string;
@@ -69,8 +69,8 @@ export default function EditableHierarchyCell({ pollId, field, initialValue }: E
                     disabled={saving}
                     className="appearance-none bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-gray-200 rounded px-2 py-1 font-mono text-center cursor-pointer outline-none"
                 >
-                    {LEVEL_LETTERS.map((char, i) => (
-                        <option key={i} value={i + 1}>{char}</option>
+                    {Array.from({length: 10}, (_, i) => i + 1).map((num) => (
+                        <option key={num} value={num}>{num}</option>
                     ))}
                 </select>
                 {saving && <div className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}

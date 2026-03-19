@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES } from "@/lib/formatters";
 
 export default function LevelFilters() {
     const router = useRouter();
@@ -93,8 +93,8 @@ export default function LevelFilters() {
                     }}
                 >
                     <option value="">All</option>
-                    {LEVEL_LETTERS.map((char, i) => (
-                        <option key={i} value={i + 1}>{char}</option>
+                    {Array.from({length: 10}, (_, i) => i + 1).map((num) => (
+                        <option key={num} value={num}>{num}</option>
                     ))}
                 </select>
             </div>

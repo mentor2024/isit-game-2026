@@ -45,7 +45,7 @@ export default async function EditPollPage({ params }: { params: Promise<{ id: s
     const { prev, next } = await getAdjacentPolls(poll.stage, poll.level, poll.poll_order);
 
     return (
-        <div className="max-w-2xl mx-auto p-8">
+        <div className="max-w-3xl mx-auto px-6 py-8">
             <BackToPollsLink />
 
             <div className="flex justify-between items-center mb-8">

@@ -26,32 +26,20 @@ export async function saveLevelConfig(stage: number, level: number, formData: Fo
 
     const instructions = cleanHtml(formData.get("instructions") as string);
     const intro_content = cleanHtml(formData.get("intro_content") as string);
-    const izzy_intro_image = formData.get("izzy_intro_image") as string;
-    const awareness_assessment = cleanHtml(formData.get("awareness_assessment") as string);
-
-    // Build score_tiers — 5 tiers, looked up by letter
-    const score_tiers = [];
-
-    const tierDefs = [
-        { letter: 'A', minKey: 'tier_a_min', msgKey: 'tier_a_message', defaultMin: 90, title: 'Group A' },
-        { letter: 'B', minKey: 'tier_b_min', msgKey: 'tier_b_message', defaultMin: 70, title: 'Group B' },
-        { letter: 'C', minKey: 'tier_c_min', msgKey: 'tier_c_message', defaultMin: 0, title: 'Group C' },
-    ];
-
-    for (const def of tierDefs) {
-        const msg = formData.get(def.msgKey) as string;
-        const min = def.minKey ? parseInt(formData.get(def.minKey) as string) || def.defaultMin : 0;
-        score_tiers.push({
-            tier: def.letter,
-            min_score: min,
-            message: cleanHtml(msg) || '',
-            title: def.title,
-        });
-    }
 
     const pathSelectorConfigRaw = formData.get("path_selector_config") as string;
     const pathSelectorConfig = pathSelectorConfigRaw ? JSON.parse(pathSelectorConfigRaw) : {};
-    const modules = formData.getAll("modules");
+
+    // layout_config is the source of truth for modules now
+    const layoutConfigRaw = formData.get("layout_config") as string;
+    const layoutConfig = layoutConfigRaw ? JSON.parse(layoutConfigRaw) : null;
+
+    // Derive enabled_modules from layout_config so legacy code keeps working
+    const modules: string[] = layoutConfig
+        ? layoutConfig.rows
+            .flatMap((row: any) => row.columns.map((col: any) => col.moduleId))
+            .filter(Boolean)
+        : (formData.getAll("modules") as string[]);
 
     try {
         const { error } = await supabase
@@ -61,12 +49,10 @@ export async function saveLevelConfig(stage: number, level: number, formData: Fo
                 level,
                 instructions,
                 intro_content,
-                izzy_intro_image,
-                awareness_assessment,
                 is_linked,
                 show_interstitial,
-                score_tiers,
                 enabled_modules: modules,
+                layout_config: layoutConfig,
                 path_selector_config: pathSelectorConfig,
                 updated_at: new Date().toISOString()
             }, { onConflict: 'stage, level' });

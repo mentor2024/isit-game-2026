@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabaseClient";
 import { submitLead } from "@/app/(main)/poll/actions";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { STAGE_NAMES, LEVEL_LETTERS, formatHtmlForDisplay } from "@/lib/formatters"; // Assuming these exist, else use raw
+import { STAGE_NAMES, formatHtmlForDisplay } from "@/lib/formatters";
 import { ArrowLeft } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useEffect } from "react";
@@ -133,7 +133,7 @@ export default function LevelCompleteScreen({
                                 disabled={loading}
                                 className="px-6 py-2 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition-colors shadow flex items-center gap-2 disabled:opacity-50"
                             >
-                                {loading ? "Loading..." : `Proceed to Level ${LEVEL_LETTERS[level] || level + 1}`}
+                                {loading ? "Loading..." : `Proceed to Level ${level + 1}`}
                                 {!loading && <ArrowLeft className="w-4 h-4 rotate-180" />}
                             </button>
                         </div>
@@ -222,7 +222,7 @@ export default function LevelCompleteScreen({
                 {/* Header */}
                 <div className="bg-black text-white p-8">
                     <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-2">
-                        {isStageComplete ? `Stage ${stage} Complete` : `Level ${LEVEL_LETTERS[level - 1] || level}`}
+                        {isStageComplete ? `Stage ${stage} Complete` : `Level ${level}`}
                     </h3>
                     <h1 className="text-4xl font-black">
                         {isStageComplete ? "STAGE CLEAR!" : "LEVEL CLEAR!"}

@@ -136,25 +136,45 @@ export async function createPoll(formData: FormData) {
             const needsMedia = type === "isit_image" || type === "quad_sorting" || ((type === "likert_5" || type === "likert_10" || type === "word_cloud") && mediaType && mediaType !== 'text');
 
             if (needsMedia) {
-                if (!fileInput || fileInput.size === 0) throw new Error(`Image for Object ${i} is missing`);
+                const assetUrl = formData.get(`obj${i}_image_asset_url`) as string;
+                if (assetUrl) {
+                    // Use repository URL directly — no upload needed
+                    imageUrl = assetUrl;
+                } else {
+                    if (!fileInput || fileInput.size === 0) throw new Error(`Image for Object ${i} is missing`);
 
-                // Upload Image
-                const fileExt = fileInput.name.split('.').pop();
-                const filePath = `${poll.id}/${i}_${Date.now()}.${fileExt}`;
+                    // Upload Image
+                    const fileExt = fileInput.name.split('.').pop();
+                    const filePath = `${poll.id}/${i}_${Date.now()}.${fileExt}`;
 
-                const { error: uploadError } = await supabase
-                    .storage
-                    .from('poll_images')
-                    .upload(filePath, fileInput, {
-                        contentType: fileInput.type,
-                        upsert: true
+                    const { error: uploadError } = await supabase
+                        .storage
+                        .from('poll_images')
+                        .upload(filePath, fileInput, {
+                            contentType: fileInput.type,
+                            upsert: true
+                        });
+
+                    if (uploadError) throw new Error(`Upload failed for Object ${i}: ${uploadError.message}`);
+
+                    // Get Public URL
+                    const { data: { publicUrl } } = supabase.storage.from('poll_images').getPublicUrl(filePath);
+                    imageUrl = publicUrl;
+
+                    // Also register in asset repository
+                    await supabase.from('assets').insert({
+                        title: textInput || fileInput.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
+                        filename: fileInput.name,
+                        storage_path: filePath,
+                        public_url: publicUrl,
+                        asset_type: 'image',
+                        mime_type: fileInput.type,
+                        file_size: fileInput.size,
+                        tags: ['poll-image'],
+                        description: `From poll: ${poll.title || poll.id}`,
+                        attribution: null,
                     });
-
-                if (uploadError) throw new Error(`Upload failed for Object ${i}: ${uploadError.message}`);
-
-                // Get Public URL
-                const { data: { publicUrl } } = supabase.storage.from('poll_images').getPublicUrl(filePath);
-                imageUrl = publicUrl;
+                }
             } else {
                 if (!textInput) throw new Error(`Text for Object ${i} is missing`);
             }
@@ -357,7 +377,11 @@ export async function updatePoll(formData: FormData) {
                     console.log(`[updatePoll] Object ${index}: Setting updates.points = ${updates.points}`);
                 }
 
-                if (fileInput && fileInput.size > 0) {
+                const assetUrl = formData.get(`obj${index}_image_asset_url`) as string;
+                if (assetUrl) {
+                    // Use repository URL directly
+                    updates.image_url = assetUrl;
+                } else if (fileInput && fileInput.size > 0) {
                     const fileExt = fileInput.name.split('.').pop();
                     const filePath = `${pollId}/${index}_${Date.now()}.${fileExt}`;
 
@@ -373,6 +397,25 @@ export async function updatePoll(formData: FormData) {
 
                     const { data: { publicUrl } } = supabase.storage.from('poll_images').getPublicUrl(filePath);
                     updates.image_url = publicUrl;
+
+                    // Also register in asset repository if not already there
+                    const { count } = await supabase.from('assets')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('public_url', publicUrl);
+                    if (!count) {
+                        await supabase.from('assets').insert({
+                            title: fileInput.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
+                            filename: fileInput.name,
+                            storage_path: filePath,
+                            public_url: publicUrl,
+                            asset_type: 'image',
+                            mime_type: fileInput.type,
+                            file_size: fileInput.size,
+                            tags: ['poll-image'],
+                            description: `From poll: ${pollId}`,
+                            attribution: null,
+                        });
+                    }
                 }
 
                 const { error: updateError } = await supabase

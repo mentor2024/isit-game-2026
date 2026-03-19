@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState, useEffect } from "react";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES } from "@/lib/formatters";
 // Note: You might not have use-debounce installed. 
 // I'll stick to a simpler "Apply" button or just useEffect if no debouncer in package.json.
 // Checking package.json... actually simpler to just use onBlur or Enter key for now without extra deps.
@@ -122,8 +122,8 @@ export default function PollFilters() {
                     }}
                 >
                     <option value="">All</option>
-                    {LEVEL_LETTERS.map((char, i) => (
-                        <option key={i} value={i + 1}>{char}</option>
+                    {Array.from({length: 10}, (_, i) => i + 1).map((num) => (
+                        <option key={num} value={num}>{num}</option>
                     ))}
                 </select>
             </div>

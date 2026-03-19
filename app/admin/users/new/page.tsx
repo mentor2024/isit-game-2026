@@ -5,7 +5,7 @@ import AdminUserForm from "@/components/AdminUserForm";
 
 export default function NewUserPage() {
     return (
-        <div className="max-w-2xl mx-auto p-8">
+        <div className="max-w-3xl mx-auto px-6 py-8">
             <Link href="/admin/users" className="flex items-center gap-2 text-gray-500 hover:text-black mb-6 font-bold">
                 <ArrowLeft size={20} />
                 Back to Users

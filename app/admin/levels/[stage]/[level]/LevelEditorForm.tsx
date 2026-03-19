@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { formatLevel, formatStage, AVAILABLE_IZZY_IMAGES } from "@/lib/formatters";
+import { formatStage } from "@/lib/formatters";
 import { saveLevelConfig } from "@/app/admin/levels/actions";
-import RichTextEditor from "@/components/RichTextEditor";
-import VariableCheatSheet from "@/components/VariableCheatSheet";
-import VariableActionLabel from "@/components/VariableActionLabel";
+import dynamic from "next/dynamic";
+import type { LayoutConfig } from "@/components/LayoutBuilder";
+
+const LayoutBuilder = dynamic(() => import("@/components/LayoutBuilder"), { ssr: false });
 
 type PathConfig = {
     instructions: string;
@@ -15,10 +16,8 @@ type PathConfig = {
 
 type LevelConfig = {
     instructions: string;
-    intro_content?: string;
-    izzy_intro_image?: string;
-    awareness_assessment?: string;
     enabled_modules: string[];
+    layout_config?: LayoutConfig;
     path_selector_config?: PathConfig;
     is_linked?: boolean;
     show_interstitial?: boolean;
@@ -67,22 +66,13 @@ export default function LevelEditorForm({
     };
 
     const [loading, setLoading] = useState(false);
+    const [isSavingPage, setIsSavingPage] = useState(false);
     const [message, setMessage] = useState("");
+    const [pageMessage, setPageMessage] = useState("");
 
     // Rich Text State (Cleaned on Init)
     const [instructions, setInstructions] = useState(cleanClientHtml(initialConfig?.instructions));
-    const [introContent, setIntroContent] = useState(cleanClientHtml(initialConfig?.intro_content));
-    const [izzyIntroImage, setIzzyIntroImage] = useState(initialConfig?.izzy_intro_image || "izzy_6_640x960.png");
-    const [showIzzyModal, setShowIzzyModal] = useState(false);
-    const [awarenessAssessment, setAwarenessAssessment] = useState(cleanClientHtml(initialConfig?.awareness_assessment));
     // Ensure we parse by Tier Letter instead of array index to prevent shifting
-    const tA = initialConfig?.score_tiers?.find(t => t.tier === 'A');
-    const tB = initialConfig?.score_tiers?.find(t => t.tier === 'B');
-    const tC = initialConfig?.score_tiers?.find(t => t.tier === 'C');
-
-    const [tierAMessage, setTierAMessage] = useState(cleanClientHtml(tA?.message) || "Outstanding! You are in Group A.");
-    const [tierBMessage, setTierBMessage] = useState(cleanClientHtml(tB?.message) || "Good effort. You are in Group B.");
-    const [tierCMessage, setTierCMessage] = useState(cleanClientHtml(tC?.message) || "Needs improvement. You are in Group C.");
 
     // Path Selector State
     const savedPathConfig = initialConfig?.path_selector_config;
@@ -92,17 +82,17 @@ export default function LevelEditorForm({
         path2: savedPathConfig?.path2?.label ? savedPathConfig.path2 : { label: "Bonus Image Level", url: `/stage/${stage + 1}/level/1` }
     });
 
-    // Module State (to toggle visibility)
-    const [enabledModules, setEnabledModules] = useState<string[]>(initialConfig?.enabled_modules || []);
-    const isPathSelectorEnabled = enabledModules.includes("path_selector");
+    // Layout config (source of truth for modules)
+    const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>(
+        (() => { const lc = initialConfig?.layout_config; return (lc && Array.isArray(lc.rows)) ? lc : { rows: [] }; })()
+    );
 
-    const handleModuleChange = (id: string, checked: boolean) => {
-        if (checked) {
-            setEnabledModules([...enabledModules, id]);
-        } else {
-            setEnabledModules(enabledModules.filter(m => m !== id));
-        }
-    };
+    // Derived: which modules are currently placed (for path selector visibility)
+    const enabledModules = (layoutConfig?.rows ?? [])
+        .flatMap((r: any) => (r.columns ?? []).map((c: any) => c.moduleId))
+        .filter((id): id is string => Boolean(id));
+
+    const isPathSelectorEnabled = enabledModules.includes("path_selector");
 
 
     async function handleSubmit(formData: FormData) {
@@ -111,16 +101,11 @@ export default function LevelEditorForm({
 
         // Clean again on save just in case
         formData.set("instructions", cleanClientHtml(instructions));
-        if (introContent) formData.set("intro_content", cleanClientHtml(introContent));
-        if (izzyIntroImage) formData.set("izzy_intro_image", izzyIntroImage);
-        if (awarenessAssessment) formData.set("awareness_assessment", cleanClientHtml(awarenessAssessment));
-        formData.set("tier_a_message", cleanClientHtml(tierAMessage));
-        formData.set("tier_b_message", cleanClientHtml(tierBMessage));
-        formData.set("tier_c_message", cleanClientHtml(tierCMessage));
 
-        // Ensure modules are explicitly synced from React state
+        // Sync layout_config from React state
+        formData.set("layout_config", JSON.stringify(layoutConfig));
+        // Remove any stale module checkboxes (layout_config is source of truth)
         formData.delete("modules");
-        enabledModules.forEach(m => formData.append("modules", m));
 
         const result = await saveLevelConfig(stage, level, formData);
 
@@ -132,376 +117,152 @@ export default function LevelEditorForm({
         setLoading(false);
     }
 
+    async function saveLayout() {
+        setIsSavingPage(true);
+        setPageMessage("");
+        const fd = new FormData();
+        fd.set("layout_config", JSON.stringify(layoutConfig));
+        fd.delete("modules");
+        const result = await saveLevelConfig(stage, level, fd);
+        setPageMessage(result.success ? "Page saved ✅" : `Error: ${result.error} ❌`);
+        setTimeout(() => setPageMessage(""), 3000);
+        setIsSavingPage(false);
+    }
+
     return (
-        <form action={handleSubmit} className="text-left max-w-2xl mx-auto">
-            <VariableCheatSheet />
-            {/* Instructions */}
-            {/* Instructions */}
-            <div className="mb-8">
-                <input type="hidden" name="instructions" value={instructions} />
-                <VariableActionLabel label="Level Up Instructions" value={instructions} onUpdate={setInstructions} />
-                <RichTextEditor
-                    value={instructions}
-                    onChange={setInstructions}
-                    placeholder="Enter instructions or congratulations message..."
-                    heightClass="h-32"
-                />
+        <form action={handleSubmit} className="text-left flex flex-col gap-6">
+
+            {/* Page Builder — has its own internal left/right split (canvas + palette) */}
+            <div>
+                <input type="hidden" name="layout_config" value={JSON.stringify(layoutConfig)} />
+                <LayoutBuilder value={layoutConfig} onChange={setLayoutConfig} onSavePage={saveLayout} isSavingPage={isSavingPage} />
+                {pageMessage && (
+                    <div className={`text-center text-sm font-bold p-3 rounded-xl ${pageMessage.includes("Error") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>{pageMessage}</div>
+                )}
             </div>
 
-            {/* Intro Content (LevelIntroScreen) */}
-            <div className="mb-8 p-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
-                <h3 className="font-black text-xl mb-4 text-yellow-900 flex items-center gap-2">
-                    👋 Level Introduction (Izzy)
-                </h3>
-
-                <div className="flex flex-col md:flex-row gap-6 mb-6">
-                    {/* Image Selection */}
-                    <div className="flex flex-col items-start gap-3 w-full md:w-1/3">
-                        <label className="block text-sm font-bold text-yellow-900 uppercase">Image</label>
-                        <input type="hidden" name="izzy_intro_image" value={izzyIntroImage} />
-
-                        {izzyIntroImage ? (
-                            <div className="relative w-full h-48 bg-white rounded-xl border-2 border-yellow-300 p-2 overflow-hidden flex items-center justify-center">
-                                <img src={`/images/izzy/${izzyIntroImage.split('/').pop()}`} alt="Izzy Selected" className="max-h-full object-contain" />
-                                <button
-                                    type="button"
-                                    onClick={() => setIzzyIntroImage("")}
-                                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:scale-110"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="w-full h-48 bg-yellow-100 rounded-xl border-2 border-dashed border-yellow-300 flex items-center justify-center">
-                                <span className="text-yellow-600 font-medium">No Image</span>
-                            </div>
-                        )}
-
-                        <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); setShowIzzyModal(true); }}
-                            className="w-full bg-yellow-600 text-white font-bold py-2 rounded-lg hover:bg-yellow-700 transition relative z-0"
-                        >
-                            Choose Image
-                        </button>
-                    </div>
-
-                    {/* Intro Content */}
-                    <div className="flex-1 flex flex-col gap-2">
-                        <input type="hidden" name="intro_content" value={introContent} />
-                        <VariableActionLabel label="Introductory Content" value={introContent} onUpdate={setIntroContent} />
-                        <div className="bg-white border-2 border-yellow-300 rounded-xl overflow-hidden shadow-inner h-full flex flex-col">
-                            <RichTextEditor
-                                value={introContent}
-                                onChange={setIntroContent}
-                                placeholder="Enter the introduction message for the beginning of this level..."
-                                heightClass="flex-1 min-h-[140px]"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Awareness Assessment (Left Panel Content on LevelCompleteScreen) */}
-            <div className="mb-8 p-6 bg-purple-50 border-2 border-purple-200 rounded-xl">
-                <h3 className="font-black text-xl mb-2 text-purple-900 flex items-center gap-2">
-                    🧠 Awareness Assessment Report
-                </h3>
-                <p className="text-sm text-purple-700 mb-4">
-                    This content displays on the top-left panel of the Level Complete screen.
-                </p>
-                <input type="hidden" name="awareness_assessment" value={awarenessAssessment} />
-                <VariableActionLabel label="Assessment Content" value={awarenessAssessment} onUpdate={setAwarenessAssessment} />
-                <RichTextEditor
-                    value={awarenessAssessment}
-                    onChange={setAwarenessAssessment}
-                    placeholder="Enter the main assessment breakdown here..."
-                    heightClass="h-48"
-                />
-            </div>
-
-
-
-            {/* Modules */}
-            <div className="mb-10">
-                <label className="block text-lg font-bold mb-4">Enabled Modules</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {AVAILABLE_MODULES.map((mod) => (
-                        <label key={mod.id} className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors has-[:checked]:border-black has-[:checked]:bg-yellow-50">
-                            <input
-                                type="checkbox"
-                                name="modules"
-                                value={mod.id}
-                                checked={enabledModules.includes(mod.id)}
-                                onChange={(e) => handleModuleChange(mod.id, e.target.checked)}
-                                className="w-5 h-5 accent-black"
-                            />
-                            <span className="font-bold">{mod.label}</span>
-                        </label>
-                    ))}
-                </div>
-            </div>
-
-            {/* Series / Linking Config */}
-            <div className="mb-10 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                <h3 className="font-black text-xl mb-4 text-blue-900 flex items-center gap-2">
-                    🔗 Level Flow & Linking
-                </h3>
-
-                <div className="flex flex-col gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            name="is_linked"
-                            defaultChecked={initialConfig?.is_linked}
-                            className="w-6 h-6 accent-blue-600"
-                        />
-                        <div>
-                            <span className="font-bold text-blue-900 block">Link polls in this level as a series?</span>
-                            <span className="text-sm text-blue-700">Accumulate score across all polls before showing results.</span>
-                        </div>
-                    </label>
-
-                    <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            name="show_interstitial"
-                            defaultChecked={initialConfig?.show_interstitial ?? true}
-                            className="w-6 h-6 accent-blue-600"
-                        />
-                        <div>
-                            <span className="font-bold text-blue-900 block">Show Interstitial Level-Up Page?</span>
-                            <span className="text-sm text-blue-700">
-                                If unchecked, users stay on the main screen (showing Level Complete report/form) instead of going to the transition page.
-                            </span>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            {/* Score Tiers Config */}
-            <div className="mb-10 p-6 bg-green-50 border-2 border-green-200 rounded-xl">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-black text-xl text-green-900 flex items-center gap-2">
-                        📊 Scoring Groups (A, B, C)
-                    </h3>
-                    <div className="bg-black text-white px-3 py-1 rounded-lg text-sm font-bold">
-                        Total Possible Points: {pollCount * (stage || 1) * (level || 1)}
-                    </div>
-                </div>
-
-                <div className="bg-green-100 p-4 rounded-lg text-sm text-green-900 mb-6">
-                    <p>Configure ranges for feedback. Players fall into the highest group they qualify for.</p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                    {/* Group A */}
-                    <div className="p-4 bg-white rounded-xl border border-green-200 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-bl-lg">Highest</div>
-                        <h4 className="font-bold text-green-900 mb-4 flex items-center gap-2">🏆 Group A (Top Tier)</h4>
-                        <div className="grid grid-cols-1 gap-4">
-                            {stage !== 0 ? (
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Min Score</label>
-                                    <input
-                                        type="number"
-                                        name="tier_a_min"
-                                        defaultValue={tA?.min_score ?? 90}
-                                        className="w-full p-2 border border-gray-300 rounded font-mono"
-                                        min="0"
-                                    />
-                                </div>
-                            ) : (
-                                <input type="hidden" name="tier_a_min" value={90} />
-                            )}
-                            <div>
-                                <input type="hidden" name="tier_a_message" value={tierAMessage} />
-                                <VariableActionLabel label="Feedback Message" value={tierAMessage} onUpdate={setTierAMessage} />
-                                <RichTextEditor
-                                    value={tierAMessage}
-                                    onChange={setTierAMessage}
-                                    placeholder="You got in Group A!"
+            {/* Level Flow & Linking — constrained to match the canvas width (not the full page) */}
+            <div className="flex gap-4 items-start">
+                <div className="flex-1 min-w-0">
+                    <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                        <h3 className="font-black text-xl mb-4 text-blue-900 flex items-center gap-2">
+                            🔗 Level Flow & Linking
+                        </h3>
+                        <div className="flex flex-col gap-4">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    name="is_linked"
+                                    defaultChecked={initialConfig?.is_linked}
+                                    className="w-6 h-6 accent-blue-600"
                                 />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Group B */}
-                    <div className="p-4 bg-white rounded-xl border border-yellow-200 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded-bl-lg">Middle</div>
-                        <h4 className="font-bold text-yellow-900 mb-4 flex items-center gap-2">⭐ Group B (Mid Tier)</h4>
-                        <div className="grid grid-cols-1 gap-4">
-                            {stage !== 0 ? (
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Min Score</label>
-                                    <input
-                                        type="number"
-                                        name="tier_b_min"
-                                        defaultValue={tB?.min_score ?? 70}
-                                        className="w-full p-2 border border-gray-300 rounded font-mono"
-                                        min="0"
-                                    />
+                                    <span className="font-bold text-blue-900 block">Link polls in this level as a series?</span>
+                                    <span className="text-sm text-blue-700">Accumulate score across all polls before showing results.</span>
                                 </div>
-                            ) : (
-                                <input type="hidden" name="tier_b_min" value={70} />
-                            )}
-                            <div>
-                                <input type="hidden" name="tier_b_message" value={tierBMessage} />
-                                <VariableActionLabel label="Feedback Message" value={tierBMessage} onUpdate={setTierBMessage} />
-                                <RichTextEditor
-                                    value={tierBMessage}
-                                    onChange={setTierBMessage}
-                                    placeholder="You got in Group B!"
+                            </label>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    name="show_interstitial"
+                                    defaultChecked={initialConfig?.show_interstitial ?? true}
+                                    className="w-6 h-6 accent-blue-600"
                                 />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Group C */}
-                    <div className="p-4 bg-white rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-bl-lg">Lowest</div>
-                        <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">🤔 Group C (Low Tier)</h4>
-                        <div className="grid grid-cols-1 gap-4">
-                            <div className="flex items-center text-sm text-gray-500 italic">
-                                Anything below Group B
-                            </div>
-                            {stage !== 0 ? (
                                 <div>
-                                    <input type="hidden" name="tier_c_min" value={0} />
+                                    <span className="font-bold text-blue-900 block">Show Interstitial Level-Up Page?</span>
+                                    <span className="text-sm text-blue-700">
+                                        If unchecked, users stay on the main screen instead of going to the transition page.
+                                    </span>
                                 </div>
-                            ) : (
-                                <input type="hidden" name="tier_c_min" value={0} />
-                            )}
-                            <div>
-                                <input type="hidden" name="tier_c_message" value={tierCMessage} />
-                                <VariableActionLabel label="Feedback Message" value={tierCMessage} onUpdate={setTierCMessage} />
-                                <RichTextEditor
-                                    value={tierCMessage}
-                                    onChange={setTierCMessage}
-                                    placeholder="You got in Group C..."
-                                />
-                            </div>
+                            </label>
                         </div>
                     </div>
                 </div>
+                {/* Spacer matching the w-56 palette column in LayoutBuilder */}
+                <div className="w-56 shrink-0" />
             </div>
 
             {/* Path Selector Config */}
             {isPathSelectorEnabled && (
-                <div className="mb-10 p-6 bg-gray-50 border-2 border-black rounded-xl animate-in fade-in slide-in-from-top-4">
-                    <h3 className="font-black text-xl mb-4 flex items-center gap-2">
-                        🔀 Path Selector Configuration
-                    </h3>
-
-                    <input type="hidden" name="path_selector_config" value={JSON.stringify(pathConfig)} />
-
-                    <div className="flex flex-col gap-4">
-                        <div>
-                            <label className="block font-bold text-sm mb-1">Selector Instructions</label>
-                            <textarea
-                                value={pathConfig.instructions}
-                                onChange={(e) => setPathConfig({ ...pathConfig, instructions: e.target.value })}
-                                className="w-full p-3 border border-gray-300 rounded-lg"
-                                placeholder="e.g. Choose your destiny..."
-                                rows={2}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Path 1 */}
-                            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <h4 className="font-bold mb-2">Path 1 (Left)</h4>
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase">Button Label</label>
-                                        <input
-                                            value={pathConfig.path1.label}
-                                            onChange={(e) => setPathConfig({ ...pathConfig, path1: { ...pathConfig.path1, label: e.target.value } })}
-                                            className="w-full p-2 border border-gray-300 rounded"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase">Destination URL</label>
-                                        <input
-                                            value={pathConfig.path1.url}
-                                            onChange={(e) => setPathConfig({ ...pathConfig, path1: { ...pathConfig.path1, url: e.target.value } })}
-                                            className="w-full p-2 border border-gray-300 rounded font-mono text-sm"
-                                        />
-                                    </div>
+                <div className="flex gap-4 items-start">
+                    <div className="flex-1 min-w-0">
+                        <div className="p-6 bg-gray-50 border-2 border-black rounded-xl animate-in fade-in slide-in-from-top-4">
+                            <h3 className="font-black text-xl mb-4 flex items-center gap-2">
+                                🔀 Path Selector Configuration
+                            </h3>
+                            <input type="hidden" name="path_selector_config" value={JSON.stringify(pathConfig)} />
+                            <div className="flex flex-col gap-4">
+                                <div>
+                                    <label className="block font-bold text-sm mb-1">Selector Instructions</label>
+                                    <textarea
+                                        value={pathConfig.instructions}
+                                        onChange={(e) => setPathConfig({ ...pathConfig, instructions: e.target.value })}
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                        rows={2}
+                                    />
                                 </div>
-                            </div>
-
-                            {/* Path 2 */}
-                            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <h4 className="font-bold mb-2">Path 2 (Right)</h4>
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase">Button Label</label>
-                                        <input
-                                            value={pathConfig.path2.label}
-                                            onChange={(e) => setPathConfig({ ...pathConfig, path2: { ...pathConfig.path2, label: e.target.value } })}
-                                            className="w-full p-2 border border-gray-300 rounded"
-                                        />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                        <h4 className="font-bold mb-2">Path 1 (Left)</h4>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-400 uppercase">Button Label</label>
+                                                <input value={pathConfig.path1.label}
+                                                    onChange={(e) => setPathConfig({ ...pathConfig, path1: { ...pathConfig.path1, label: e.target.value } })}
+                                                    className="w-full p-2 border border-gray-300 rounded" />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-400 uppercase">Destination URL</label>
+                                                <input value={pathConfig.path1.url}
+                                                    onChange={(e) => setPathConfig({ ...pathConfig, path1: { ...pathConfig.path1, url: e.target.value } })}
+                                                    className="w-full p-2 border border-gray-300 rounded font-mono text-sm" />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase">Destination URL</label>
-                                        <input
-                                            value={pathConfig.path2.url}
-                                            onChange={(e) => setPathConfig({ ...pathConfig, path2: { ...pathConfig.path2, url: e.target.value } })}
-                                            className="w-full p-2 border border-gray-300 rounded font-mono text-sm"
-                                        />
+                                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                        <h4 className="font-bold mb-2">Path 2 (Right)</h4>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-400 uppercase">Button Label</label>
+                                                <input value={pathConfig.path2.label}
+                                                    onChange={(e) => setPathConfig({ ...pathConfig, path2: { ...pathConfig.path2, label: e.target.value } })}
+                                                    className="w-full p-2 border border-gray-300 rounded" />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-400 uppercase">Destination URL</label>
+                                                <input value={pathConfig.path2.url}
+                                                    onChange={(e) => setPathConfig({ ...pathConfig, path2: { ...pathConfig.path2, url: e.target.value } })}
+                                                    className="w-full p-2 border border-gray-300 rounded font-mono text-sm" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    <div className="w-56 shrink-0" />
                 </div>
             )}
 
-            {/* Actions */}
-            <div className="flex items-center gap-4">
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-black text-white font-bold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                >
-                    {loading ? "Saving..." : "Save Configuration"}
-                </button>
+            {/* Save — also constrained to canvas width */}
+            <div className="flex gap-4 items-start">
+                <div className="flex-1 min-w-0">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-black text-white font-bold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                        {loading ? "Saving..." : "Change Settings"}
+                    </button>
+                    {message && (
+                        <div className={`mt-4 text-center font-bold p-4 rounded-xl ${message.includes("Error") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                            {message}
+                        </div>
+                    )}
+                </div>
+                <div className="w-56 shrink-0" />
             </div>
 
-            {message && (
-                <div className={`mt-6 text-center font-bold p-4 rounded-xl ${message.includes("Error") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                    {message}
-                </div>
-            )}
-
-            {showIzzyModal && (
-                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden text-left">
-                        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                            <h3 className="font-black text-xl">Select Izzy Thumbnail</h3>
-                            <button type="button" onClick={() => setShowIzzyModal(false)} className="text-gray-500 hover:text-black font-bold p-2">Close</button>
-                        </div>
-                        <div className="p-6 overflow-y-auto flex-1 bg-gray-100">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                {AVAILABLE_IZZY_IMAGES.map((img) => (
-                                    <button
-                                        key={img}
-                                        type="button"
-                                        onClick={() => {
-                                            setIzzyIntroImage(img);
-                                            setShowIzzyModal(false);
-                                        }}
-                                        className={`bg-white rounded-xl p-0 overflow-hidden border-4 transition-all hover:scale-105 shadow-sm hover:shadow-md h-32 flex items-center justify-center ${izzyIntroImage === img ? 'border-yellow-500 bg-yellow-50' : 'border-transparent'}`}
-                                    >
-                                        <img src={`/images/izzy/${img}`} alt={img} className="max-h-full object-contain drop-shadow-md" />
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </form>
     );
 }

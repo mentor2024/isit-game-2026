@@ -165,7 +165,7 @@ function IzzyDialogue({ image, quote }: { image: string, quote: string }) {
 
             {/* Izzy image */}
             <img
-                src={`/images/izzy/${image}`}
+                src={image?.startsWith("http") || image?.startsWith("/images") ? image : `/images/izzy/${image}`}
                 alt="Izzy"
                 className="w-100 h-100 object-contain drop-shadow-xl mt-3 hover:scale-105 transition-transform duration-300"
             />

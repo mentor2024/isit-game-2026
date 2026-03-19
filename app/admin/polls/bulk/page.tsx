@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES } from "@/lib/formatters";
 import RichTextEditor from "@/components/RichTextEditor";
 import { bulkCreatePolls } from "@/app/admin/poll-actions";
 
@@ -48,7 +48,7 @@ export default function BulkImportPage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-8 mb-12">
+        <div className="px-6 py-8 mb-12">
             <Link href="/admin/polls" className="flex items-center gap-2 text-gray-500 hover:text-black mb-6 font-bold w-fit">
                 <ArrowLeft size={20} />
                 Back to Polls
@@ -101,8 +101,8 @@ export default function BulkImportPage() {
                                 onChange={(e) => setLevel(parseInt(e.target.value))}
                                 className="border-2 border-black p-4 rounded-xl bg-white font-bold"
                             >
-                                {LEVEL_LETTERS.map((char, i) => (
-                                    <option key={i} value={i + 1}>{char}</option>
+                                {Array.from({length: 10}, (_, i) => i + 1).map((num) => (
+                                    <option key={num} value={num}>{num}</option>
                                 ))}
                             </select>
                         </div>

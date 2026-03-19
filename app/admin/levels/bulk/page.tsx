@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { bulkUpdateLevelModules } from "@/app/admin/levels/actions";
 import { createClient } from "@/lib/supabaseClient";
-import { LEVEL_LETTERS } from "@/lib/formatters";
+
 
 // Define the modules matching the LevelEditorForm constants
 const AVAILABLE_MODULES = [
@@ -354,7 +354,7 @@ export default function LevelBulkEditorPage() {
                                             />
                                         </td>
                                         <td className="p-4 font-black border-r-2 border-gray-200 sticky left-[64px] bg-white z-10 whitespace-nowrap">
-                                            {lvl.stage}-{LEVEL_LETTERS[lvl.level - 1] || lvl.level}
+                                            {lvl.stage}-{lvl.level}
                                             {isDirty && <span className="ml-2 w-2 h-2 inline-block bg-orange-500 rounded-full" title="Unsaved changes"></span>}
                                         </td>
 

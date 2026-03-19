@@ -56,13 +56,15 @@ export default function IsItRails({
     children,
     topLeftContent,
     topRightContent,
-    hideRails = false
+    hideRails = false,
+    side
 }: {
     items: RailItem[],
     children?: React.ReactNode,
     topLeftContent?: React.ReactNode,
     topRightContent?: React.ReactNode,
-    hideRails?: boolean
+    hideRails?: boolean,
+    side?: "IS" | "IT"
 }) {
     const [modalOpen, setModalOpen] = useState(false);
     const handleOpenModal = () => setModalOpen(true);
@@ -71,6 +73,57 @@ export default function IsItRails({
     const isItems = items.filter(i => i.side === "IS");
     const itItems = items.filter(i => i.side === "IT");
 
+    // Modal handling is kept the same
+    const modalJSX = (
+        modalOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div
+                    className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in"
+                    onClick={() => setModalOpen(false)}
+                ></div>
+                <div className="relative bg-white text-black p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
+                    <button
+                        onClick={() => setModalOpen(false)}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-black transition-colors"
+                    >
+                        <X size={24} />
+                    </button>
+                    <div className="mb-4 text-4xl">📊</div>
+                    <h4 className="text-xl font-bold mb-2">Community Consensus</h4>
+                    <p className="text-gray-600 font-medium">
+                        This is the percentage agreement on this mapping among full ISITAS members.
+                    </p>
+                    <button
+                        onClick={() => setModalOpen(false)}
+                        className="mt-6 bg-black text-white px-6 py-2 rounded-full font-bold hover:bg-gray-800 transition-colors"
+                    >
+                        Got it
+                    </button>
+                </div>
+            </div>
+        )
+    );
+
+    // If a specific side is requested, just render that column for the new LevelRailsLayout
+    if (side === "IS") {
+        return (
+            <>
+                <RailColumn title='IS' items={isItems} side="IS" onOpenModal={handleOpenModal} />
+                {modalJSX}
+            </>
+        );
+    }
+
+    if (side === "IT") {
+        return (
+            <>
+                <RailColumn title='IT' items={itItems} side="IT" onOpenModal={handleOpenModal} />
+                {modalJSX}
+            </>
+        );
+    }
+
+    // Default legacy layout (wraps children)
     return (
         <div className="w-full h-full flex flex-col md:flex-row justify-center items-start gap-4 relative z-10 animate-in fade-in duration-700">
             {/* IS Column (Left) */}
@@ -91,38 +144,7 @@ export default function IsItRails({
             </div>
 
             {/* Modal */}
-            {modalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in"
-                        onClick={() => setModalOpen(false)}
-                    ></div>
-
-                    {/* Dialog */}
-                    <div className="relative bg-white text-black p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
-                        <button
-                            onClick={() => setModalOpen(false)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-black transition-colors"
-                        >
-                            <X size={24} />
-                        </button>
-
-                        <div className="mb-4 text-4xl">📊</div>
-                        <h4 className="text-xl font-bold mb-2">Community Consensus</h4>
-                        <p className="text-gray-600 font-medium">
-                            This is the percentage agreement on this mapping among full ISITAS members.
-                        </p>
-
-                        <button
-                            onClick={() => setModalOpen(false)}
-                            className="mt-6 bg-black text-white px-6 py-2 rounded-full font-bold hover:bg-gray-800 transition-colors"
-                        >
-                            Got it
-                        </button>
-                    </div>
-                </div>
-            )}
+            {modalJSX}
         </div>
     );
 }

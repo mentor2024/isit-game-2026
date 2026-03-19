@@ -3,7 +3,7 @@ import { Book, Variable, FileText } from "lucide-react";
 
 export default function DocumentationPage() {
     return (
-        <div className="p-8 max-w-5xl mx-auto">
+        <div className="px-6 py-8">
             <h1 className="text-3xl font-black mb-8 flex items-center gap-3">
                 <Book className="w-8 h-8" />
                 Documentation

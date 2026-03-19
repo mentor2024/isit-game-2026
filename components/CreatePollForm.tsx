@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { createPoll } from "@/app/admin/poll-actions";
-import { STAGE_NAMES, LEVEL_LETTERS, AVAILABLE_IZZY_IMAGES } from "@/lib/formatters";
+import { STAGE_NAMES } from "@/lib/formatters";
+import AssetPickerModal from "@/components/AssetPickerModal";
+import PollImagePicker from "@/components/PollImagePicker";
 import dynamic from 'next/dynamic';
 import RichTextEditor from "@/components/RichTextEditor";
 
@@ -302,8 +304,8 @@ export default function CreatePollForm({
                                 onChange={(e) => handleLevelChange(e.target.value)}
                                 className="border-2 border-black p-3 rounded-xl bg-white"
                             >
-                                {LEVEL_LETTERS.map((char, i) => (
-                                    <option key={i} value={i + 1}>{char}</option>
+                                {Array.from({length: 10}, (_, i) => i + 1).map((num) => (
+                                    <option key={num} value={num}>{num}</option>
                                 ))}
                             </select>
                         </div>
@@ -341,7 +343,7 @@ export default function CreatePollForm({
                                     <div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                                         <h3 className="font-bold mb-3">Object {num} (Image)</h3>
                                         <div className="flex flex-col gap-3">
-                                            <input type="file" name={`obj${num}_image`} accept="image/*" required className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
+                                            <PollImagePicker name={`obj${num}_image`} required />
                                             <input name={`obj${num}_text`} placeholder={`Label (e.g. Person ${num})`} required className="border-2 border-black p-2 rounded-lg" />
                                         </div>
                                     </div>
@@ -411,7 +413,7 @@ export default function CreatePollForm({
                                     <div className="space-y-4">
                                         {pollType === "isit_image" ? (
                                             <>
-                                                <input type="file" name="obj1_image" accept="image/*" required className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
+                                                <PollImagePicker name="obj1_image" required />
                                                 <input name="obj1_text" placeholder="Label / Alt Text" required className="border-2 border-black p-2 rounded-lg" />
                                             </>
                                         ) : pollType === "likert_5" || pollType === "likert_10" || pollType === "word_cloud" ? (
@@ -491,7 +493,7 @@ export default function CreatePollForm({
                                         <div className="space-y-4">
                                             {pollType === "isit_image" ? (
                                                 <>
-                                                    <input type="file" name="obj2_image" accept="image/*" required className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
+                                                    <PollImagePicker name="obj2_image" required />
                                                     <input name="obj2_text" placeholder="Label / Alt Text" required className="border-2 border-black p-2 rounded-lg" />
                                                 </>
                                             ) : (
@@ -551,7 +553,7 @@ export default function CreatePollForm({
                                 {izzyImage ? (
                                     <div className="relative w-full h-48 bg-white rounded-xl border-2 border-purple-300 p-2 overflow-hidden flex items-center justify-center">
                                         {/* Using standard img tag since Next/Image might need explicit w/h which we don't know upfront safely, but we do for static assets so let's use standard img */}
-                                        <img src={`/images/izzy/${izzyImage}`} alt="Izzy Selected" className="max-h-full object-contain" />
+                                        <img src={izzyImage.startsWith("http") || izzyImage.startsWith("/images") ? izzyImage : `/images/izzy/${izzyImage}`} alt="Izzy Selected" className="max-h-full object-contain" />
                                         <button
                                             type="button"
                                             onClick={() => setIzzyImage("")}
@@ -592,31 +594,12 @@ export default function CreatePollForm({
                     </div>
 
                     {showIzzyModal && (
-                        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden">
-                                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                                    <h3 className="font-black text-xl">Select Izzy Thumbnail</h3>
-                                    <button type="button" onClick={() => setShowIzzyModal(false)} className="text-gray-500 hover:text-black font-bold p-2">Close</button>
-                                </div>
-                                <div className="p-6 overflow-y-auto flex-1 bg-gray-100">
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                        {AVAILABLE_IZZY_IMAGES.map((img) => (
-                                            <button
-                                                key={img}
-                                                type="button"
-                                                onClick={() => {
-                                                    setIzzyImage(img);
-                                                    setShowIzzyModal(false);
-                                                }}
-                                                className={`bg-white rounded-xl p-0 overflow-hidden border-4 transition-all hover:scale-105 shadow-sm hover:shadow-md h-32 flex items-center justify-center ${izzyImage === img ? 'border-purple-500 bg-purple-50' : 'border-transparent'}`}
-                                            >
-                                                <img src={`/images/izzy/${img}`} alt={img} className="max-h-full object-contain drop-shadow-md" />
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <AssetPickerModal
+                            typeFilter="image"
+                            defaultTag="izzy"
+                            onSelect={url => { setIzzyImage(url); setShowIzzyModal(false); }}
+                            onClose={() => setShowIzzyModal(false)}
+                        />
                     )}
 
                     <button

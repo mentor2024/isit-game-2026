@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES } from "@/lib/formatters";
 import { Edit } from "lucide-react";
 import LevelFilters from "@/components/LevelFilters";
 import CreateLevelButton from "./CreateLevelButton";
@@ -79,14 +79,13 @@ export default async function AdminLevelsPage({
         const searchLower = search.toLowerCase();
         distinctLevels = distinctLevels.filter(l => {
             const stageName = l.stage === 0 ? "Screen" : (STAGE_NAMES[l.stage - 1] || `Stage ${l.stage}`);
-            const levelLetter = LEVEL_LETTERS[l.level - 1] || `Level ${l.level}`;
-            const displayName = `${stageName} • Level ${levelLetter}`;
+            const displayName = `Stage ${stageName} • Level ${l.level}`;
             return displayName.toLowerCase().includes(searchLower);
         });
     }
 
     return (
-        <div className="max-w-6xl mx-auto p-8">
+        <div className="px-6 py-8">
             <header className="mb-8 flex justify-between items-center">
                 <div>
                     <h1 className="text-4xl font-black">Levels</h1>
@@ -119,8 +118,7 @@ export default async function AdminLevelsPage({
                     <tbody>
                         {distinctLevels.map((lvl) => {
                             const stageName = lvl.stage === 0 ? "Screen" : (STAGE_NAMES[lvl.stage - 1] || `Stage ${lvl.stage}`);
-                            const levelLetter = LEVEL_LETTERS[lvl.level - 1] || `Level ${lvl.level}`;
-                            const displayName = `${stageName} • Level ${levelLetter}`;
+                            const displayName = `Stage ${stageName} • Level ${lvl.level}`;
 
                             return (
                                 <tr key={`${lvl.stage}-${lvl.level}`} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
@@ -133,8 +131,16 @@ export default async function AdminLevelsPage({
                                     <td className="p-4 text-center font-mono text-gray-500">
                                         {lvl.pollCount === 0 ? <span className="text-gray-300">-</span> : lvl.pollCount}
                                     </td>
-                                    <td className="p-4 font-bold text-lg text-gray-800">
-                                        {displayName}
+                                    <td className="p-4 font-bold text-lg">
+                                        <a
+                                            href={`/levelup?stage=${lvl.stage}&level=${lvl.level}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-gray-800 hover:text-black hover:underline inline-flex items-center gap-1.5"
+                                        >
+                                            {displayName}
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                        </a>
                                         {lvl.hasConfig && !lvl.pollCount && (
                                             <span className="align-middle ml-2 text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full uppercase tracking-wider">Config Only</span>
                                         )}

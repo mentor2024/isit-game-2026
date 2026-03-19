@@ -45,7 +45,7 @@ export default async function AdminFeedbackPage() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto p-8">
+        <div className="px-6 py-8">
             <h1 className="text-4xl font-black mb-8">User Feedback</h1>
 
             <div className="bg-white rounded-3xl shadow-[0_8px_0_0_rgba(0,0,0,1)] border-2 border-black overflow-hidden">
