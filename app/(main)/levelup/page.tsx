@@ -6,7 +6,6 @@ import IsItRails from "@/components/IsItRails";
 import { getUserMetrics } from "@/lib/metrics";
 import { replaceMessageVariables } from "@/lib/messageUtils";
 import { resolveDynamicMessageVariables } from "@/lib/server/messageVariables";
-import type { LayoutColumn } from "@/components/LayoutBuilder";
 
 export const dynamic = 'force-dynamic';
 
@@ -752,7 +751,7 @@ export default async function LevelUpPage({
     // ── Decide rendering mode ────────────────────────────────────────────────
 
     const layoutConfigRaw = config?.layout_config as { rows?: { id: string; columns: { width: string; moduleId: string | null }[] }[] } | null;
-    const layoutConfig = (layoutConfigRaw && Array.isArray(layoutConfigRaw.rows) && layoutConfigRaw.rows.length >= 0) ? layoutConfigRaw as { rows: { id: string; columns: { width: string; moduleId: string | null }[] }[] } : null;
+    const layoutConfig = (layoutConfigRaw && Array.isArray(layoutConfigRaw.rows) && layoutConfigRaw.rows.length >= 0) ? layoutConfigRaw as { rows: { id: string; columns: { width: string; moduleId?: string | null; content?: string; modules?: { moduleId: string; content?: string }[] }[] }[] } : null;
     const pathConfig = config?.path_selector_config || {};
     const showPathSelector = modules.includes('path_selector');
 
@@ -763,7 +762,7 @@ export default async function LevelUpPage({
             {/* Rows from layout_config — no hardcoded hero, builder controls everything */}
             {(layoutConfig?.rows ?? []).map((row, rowIndex) => (
                 <div key={row.id ?? rowIndex} className="flex flex-col md:flex-row gap-6 items-start w-full">
-                    {row.columns.map((col: LayoutColumn, colIndex) => {
+                    {row.columns.map((col, colIndex) => {
                         // Support both new modules array and legacy single moduleId
                         const colMods = col.modules && col.modules.length > 0
                             ? col.modules
