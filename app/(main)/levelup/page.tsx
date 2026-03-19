@@ -6,6 +6,7 @@ import IsItRails from "@/components/IsItRails";
 import { getUserMetrics } from "@/lib/metrics";
 import { replaceMessageVariables } from "@/lib/messageUtils";
 import { resolveDynamicMessageVariables } from "@/lib/server/messageVariables";
+import type { LayoutColumn } from "@/components/LayoutBuilder";
 
 export const dynamic = 'force-dynamic';
 
@@ -279,7 +280,7 @@ export default async function LevelUpPage({
                 const cfg = col_content ? (() => { try { return JSON.parse(col_content); } catch { return {}; } })() : {};
                 const criteria: string = cfg.criteria || 'scoring_group';
                 const branches: { condition: string; operator?: string; label: string; content: string }[] = cfg.branches || [];
-                
+
                 // ── Resolve the current value for this criteria ──────────────
                 let resolvedValue: string = '';
 
@@ -762,7 +763,7 @@ export default async function LevelUpPage({
             {/* Rows from layout_config — no hardcoded hero, builder controls everything */}
             {(layoutConfig?.rows ?? []).map((row, rowIndex) => (
                 <div key={row.id ?? rowIndex} className="flex flex-col md:flex-row gap-6 items-start w-full">
-                    {row.columns.map((col, colIndex) => {
+                    {row.columns.map((col: LayoutColumn, colIndex) => {
                         // Support both new modules array and legacy single moduleId
                         const colMods = col.modules && col.modules.length > 0
                             ? col.modules
